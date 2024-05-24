@@ -124,4 +124,6 @@ target_include_directories(dual PRIVATE src)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   target_compile_options(dual PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fbracket-depth=8192>)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+  target_compile_options(dual PRIVATE /bigobj)
 endif()
