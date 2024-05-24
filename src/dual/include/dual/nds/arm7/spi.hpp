@@ -63,7 +63,7 @@ namespace dual::nds::arm7 {
 
       std::unique_ptr<Device> m_firmware{};
       std::unique_ptr<Device> m_touch_screen{};
-      Device* m_device_table[4];
+      Device* m_device_table[4]{};
   };
 
 } // namespace dual::nds::arm7
