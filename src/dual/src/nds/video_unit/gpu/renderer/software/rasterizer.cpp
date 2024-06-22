@@ -92,7 +92,7 @@ namespace dual::nds::gpu {
 
       const i32 x = (i32)(((( (i64)position.X().Raw() + w) * viewport.width  + 0x800) / two_w) + viewport.x0);
       const i32 y = (i32)((((-(i64)position.Y().Raw() + w) * viewport.height + 0x800) / two_w) + viewport.y0);
-      const u32 depth = (u32)std::clamp(((((i64)position.Z().Raw() << 14) / w + 0x3FFF) << 9), 0ll, 0xFFFFFFll);
+      const u32 depth = (u32)std::clamp<i64>(((((i64)position.Z().Raw() << 14) / w + 0x3FFF) << 9), 0ll, 0xFFFFFFll);
 
       points[i] = Edge::Point{x, y, depth, (i32)w, vertex};
 
