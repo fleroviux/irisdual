@@ -36,6 +36,10 @@ namespace dual::nds::arm7 {
       auto  Read_SPIDATA() -> u8;
       void Write_SPIDATA(u8 value);
 
+      [[nodiscard]] FLASH& GetFirmwareFlash() {
+        return (FLASH&)*m_firmware;
+      }
+
       [[nodiscard]] TouchScreen& GetTouchScreen() {
         return (TouchScreen&)*m_touch_screen;
       }

@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <atom/punning.hpp>
 #include <dual/nds/arm7/touch_screen.hpp>
+#include <dual/nds/backup/flash.hpp>
 #include <dual/nds/nds.hpp>
 #include <dual/nds/header.hpp>
 #include <dual/nds/backup/eeprom.hpp>
@@ -199,17 +200,36 @@ namespace dual::nds {
     /**
      * This is required for direct booting commercial ROMs.
      * Thank you Hydr8gon for pointing it out to me.
-     * @todo: do not write addresses that are not required.
      */
-    atom::write<u32>(m_memory.ewram.data(), 0x3FF800u, 0x1FC2u); // Chip ID 1
-    atom::write<u32>(m_memory.ewram.data(), 0x3FF804u, 0x1FC2u); // Chip ID 2
-    atom::write<u16>(m_memory.ewram.data(), 0x3FF850u, 0x5835u); // ARM7 BIOS CRC
-    atom::write<u16>(m_memory.ewram.data(), 0x3FF880u, 0x0007u); // Message from ARM9 to ARM7
-    atom::write<u16>(m_memory.ewram.data(), 0x3FF884u, 0x0006u); // ARM7 boot task
-    atom::write<u32>(m_memory.ewram.data(), 0x3FFC00u, 0x1FC2u); // Copy of chip ID 1
-    atom::write<u32>(m_memory.ewram.data(), 0x3FFC04u, 0x1FC2u); // Copy of chip ID 2
-    atom::write<u16>(m_memory.ewram.data(), 0x3FFC10u, 0x5835u); // Copy of ARM7 BIOS CRC
-    atom::write<u16>(m_memory.ewram.data(), 0x3FFC40u, 0x0001u); // Boot indicator
+    m_arm9.bus.WriteWord(0x027FF800u, 0x1FC2u, dual::arm::Memory::Bus::Data); // Chip ID 1
+    m_arm9.bus.WriteWord(0x027FF804u, 0x1FC2u, dual::arm::Memory::Bus::Data); // Chip ID 2
+    m_arm9.bus.WriteHalf(0x027FF850u, 0x5835u, dual::arm::Memory::Bus::Data); // ARM7 BIOS CRC
+    m_arm9.bus.WriteHalf(0x027FF880u, 0x0007u, dual::arm::Memory::Bus::Data); // Message from ARM9 to ARM7
+    m_arm9.bus.WriteHalf(0x027FF884u, 0x0006u, dual::arm::Memory::Bus::Data); // ARM7 boot task
+    m_arm9.bus.WriteWord(0x027FFC00u, 0x1FC2u, dual::arm::Memory::Bus::Data); // Copy of chip ID 1
+    m_arm9.bus.WriteWord(0x027FFC04u, 0x1FC2u, dual::arm::Memory::Bus::Data); // Copy of chip ID 2
+    m_arm9.bus.WriteHalf(0x027FFC10u, 0x5835u, dual::arm::Memory::Bus::Data); // Copy of ARM7 BIOS CRC
+    m_arm9.bus.WriteHalf(0x027FFC40u, 0x0001u, dual::arm::Memory::Bus::Data); // Boot indicator
+
+    {
+      FLASH& firmware = m_arm7.spi.GetFirmwareFlash();
+
+      firmware.Select();
+
+      // Command: READ_DATA
+      firmware.Transfer(0x03u);
+
+      // Address: 0x3FE00u
+      firmware.Transfer(0x03u);
+      firmware.Transfer(0xFEu);
+      firmware.Transfer(0x00u);
+
+      for(u32 address = 0x027FFC80; address < 0x027FFCF0; address++) {
+        m_arm9.bus.WriteByte(address, firmware.Transfer(0u), dual::arm::Memory::Bus::Data);
+      }
+
+      firmware.Deselect();
+    }
 
     m_arm9.bus.WriteByte(0x04000300, 1u, dual::arm::Memory::Bus::Data);
     m_arm7.bus.WriteByte(0x04000300, 1u, dual::arm::Memory::Bus::Data);
