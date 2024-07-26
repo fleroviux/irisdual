@@ -14,6 +14,7 @@ namespace dual::arm {
    */
 
   enum class ARMInstrType {
+    // Conditional
     HalfwordSignedTransfer,
     Multiply,
     SingleDataSwap,
@@ -37,6 +38,9 @@ namespace dual::arm {
     CoprocessorRegisterXfer,
     SoftwareInterrupt,
     Undefined,
+
+    // Unconditional
+    PreLoadData,
     BranchLinkExchangeImm
   };
 
@@ -71,9 +75,14 @@ namespace dual::arm {
   };
 
   constexpr auto GetARMInstructionTypeUnconditional(u32 instruction) -> ARMInstrType {
-    if(((instruction >> 25) & 7) == 5) {
-      return ARMInstrType::BranchLinkExchangeImm;
+    const auto opcode = instruction & 0x0FFFFFFF;
+
+    switch(opcode >> 25) {
+      case 0b010: return ARMInstrType::PreLoadData; // PLD #imm
+      case 0b011: return ARMInstrType::PreLoadData; // PLD reg
+      case 0b101: return ARMInstrType::BranchLinkExchangeImm;
     }
+
     return ARMInstrType::Undefined;
   }
 

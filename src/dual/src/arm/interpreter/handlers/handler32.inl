@@ -570,10 +570,9 @@ void ARM_SingleDataTransfer(u32 instruction) {
 
   constexpr bool translation = !pre && writeback;
 
-  // We do not support LDRT/STRT at the moment.
+  // We treat LDRT and STRT as post-indexed LDR and STR. This is fine for Nintendo DS emulation.
   if(translation) {
-    ARM_Unimplemented(instruction);
-    return;
+    ATOM_WARN("arm: LDRT/STRT instruction encountered, treated as LDR/STR");
   }
 
   // Calculate offset relative to base register.
@@ -631,6 +630,12 @@ void ARM_SingleDataTransfer(u32 instruction) {
       }
     }
   }
+}
+
+void ARM_PreLoadData(u32 instruction) {
+  // STUBBED
+  (void)instruction;
+  m_state.r15 += 4;
 }
 
 template <bool pre, bool add, bool user_mode, bool writeback, bool load>
@@ -931,9 +936,9 @@ void ARM_Hint(u32 instruction) {
 }
 
 void ARM_Undefined(u32 instruction) {
-  ATOM_PANIC("undefined ARM instruction: 0x{:08X} (PC = 0x{:08X})", instruction, m_state.r15);
+  ATOM_WARN("arm: Undefined ARM instruction: 0x{:08X} @ 0x{:08X}", instruction, m_state.r15);
 
-  /*// Save current program status register.
+  // Save current program status register.
   m_state.spsr[(int)Bank::Undefined] = m_state.cpsr;
 
   // Enter UND mode and disable IRQs.
@@ -943,7 +948,7 @@ void ARM_Undefined(u32 instruction) {
   // Save current program counter and jump to UND exception vector.
   m_state.r14 = m_state.r15 - 4;
   m_state.r15 = m_exception_base + 0x04;
-  ReloadPipeline32();*/
+  ReloadPipeline32();
 }
 
 void ARM_Unimplemented(u32 instruction) {

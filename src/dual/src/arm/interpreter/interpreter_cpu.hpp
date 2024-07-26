@@ -2,6 +2,7 @@
 #pragma once
 
 #include <array>
+#include <atom/logger/logger.hpp>
 #include <atom/panic.hpp>
 #include <dual/arm/coprocessor.hpp>
 #include <dual/arm/cpu.hpp>
@@ -100,6 +101,7 @@ namespace dual::arm {
       }
 
       void SetCPSR(PSR value) override {
+        SwitchMode((Mode)value.mode);
         m_state.cpsr = value;
       }
 
