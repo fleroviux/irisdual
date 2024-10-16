@@ -239,7 +239,7 @@ namespace dual::nds::gpu {
        * Maybe the viewport transform or polygon clipping aren't accurate enough?
        */
       if(r_vertical && (!l_vertical || line.x[0] != line.x[1]) && line.x[1] != 255) {
-        line.x[1]++;
+        // line.x[1] is left unchanged so that attributes (i.e texture coordinates) still interpolate with the correct gradient.
         xr0 = std::max(xl1, xr0 - 1);
         xr1 = std::max(xl1, xr1 - 1);
       }
