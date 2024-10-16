@@ -1,0 +1,1 @@
+- [ ] Flickering bug during Pokemon trade (e.g. Onyx in Violet city) in Pokemon Heart Gold / Soul Silver
