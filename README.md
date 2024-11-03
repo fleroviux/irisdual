@@ -10,6 +10,18 @@ I do **not** intend to replace any of the established DS emulators.
 
 ![hgss](resources/hgss.png)
 
+## What's there?
+
+- Full emulation of most core hardware. Most notably missing though are:
+  - Any resemblence of accurate timing emulation
+  - WiFi, sound capture and microphone emulation
+- A somewhat accurate software 3D renderer (not as accurate as melonDS though) with:
+  - Somewhat accurate edge and vertex attribute interpolation
+  - Support for fog, edge-marking and anti-aliasing (based on half-assed coverage calculations...)
+- In terms of emulator optimizations there is:
+  - An ARM to x86_64 dynamic recompiler for fast CPU emulation (using my own [lunatic](https://github.com/fleroviux/lunatic) library).
+  - Rendering of the 2D graphics engines on separate threads
+
 ## Credit
 - Martin Korth: for [GBATEK](http://problemkaputt.de/gbatek.htm)
 - [Arisotura](https://github.com/Arisotura/): for hardware documentation, especially regarding the 3D engine
