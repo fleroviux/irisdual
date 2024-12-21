@@ -54,7 +54,7 @@ namespace dual::nds::arm7 {
       m_audio_driver->Close();
     }
     m_audio_driver = std::move(audio_driver);
-    m_audio_driver->Open(nullptr, nullptr, 32768u, 4096u);
+    m_audio_driver->Open(nullptr, nullptr, 32768u, 1024u);
   }
 
   bool APU::GetEnableOutput() const {
