@@ -1,6 +1,7 @@
 
 #include <atom/panic.hpp>
 
+#include "arm/interpreter/interpreter_cpu.hpp"
 #include "dynarec_cpu.hpp"
 
 namespace dual::arm {
@@ -11,27 +12,25 @@ DynarecCPU::DynarecCPU(
   CycleCounter& cycle_counter,
   Model model,
   std::span<const AttachCPn> coprocessors
-) {
+)   : m_fallback_cpu{memory, scheduler, cycle_counter, model, coprocessors} {
 }
 
 void DynarecCPU::Reset() {
-  ATOM_PANIC("unimplemented");
+  m_fallback_cpu.Reset();
 }
 
 u32  DynarecCPU::GetExceptionBase() const {
-  ATOM_PANIC("unimplemented");
+  return m_fallback_cpu.GetExceptionBase();
 }
 
 void DynarecCPU::SetExceptionBase(u32 address) {
-  ATOM_PANIC("unimplemented");
+  m_fallback_cpu.SetExceptionBase(address);
 }
 
 void DynarecCPU::InvalidateICache() {
-  ATOM_PANIC("unimplemented");
 }
 
 void DynarecCPU::InvalidateICacheRange(u32 address_lo, u32 address_hi) {
-  ATOM_PANIC("unimplemented");
 }
 
 void DynarecCPU::SetUnalignedDataAccessEnable(bool enable) {
@@ -39,55 +38,55 @@ void DynarecCPU::SetUnalignedDataAccessEnable(bool enable) {
 }
 
 bool DynarecCPU::GetWaitingForIRQ() const {
-  ATOM_PANIC("unimplemented");
+  return m_fallback_cpu.GetWaitingForIRQ();
 }
 
 void DynarecCPU::SetWaitingForIRQ(bool value) {
-  ATOM_PANIC("unimplemented");
+  m_fallback_cpu.SetWaitingForIRQ(value);
 }
 
 bool DynarecCPU::GetIRQFlag() const {
-  ATOM_PANIC("unimplemented");
+  return m_fallback_cpu.GetIRQFlag();
 }
 
 void DynarecCPU::SetIRQFlag(bool value) {
-  ATOM_PANIC("unimplemented");
+  m_fallback_cpu.SetIRQFlag(value);
 }
 
 u32 DynarecCPU::GetGPR(GPR reg) const {
-  ATOM_PANIC("unimplemented");
+  return m_fallback_cpu.GetGPR(reg);
 }
 
 u32 DynarecCPU::GetGPR(GPR reg, Mode mode) const {
-  ATOM_PANIC("unimplemented");
+  return m_fallback_cpu.GetGPR(reg, mode);
 }
 
 CPU::PSR DynarecCPU::GetCPSR() const {
-  ATOM_PANIC("unimplemented");
+  return m_fallback_cpu.GetCPSR();
 }
 
 CPU::PSR DynarecCPU::GetSPSR(Mode mode) const {
-  ATOM_PANIC("unimplemented");
+  return m_fallback_cpu.GetSPSR(mode);
 }
 
 void DynarecCPU::SetGPR(GPR reg, u32 value) {
-  ATOM_PANIC("unimplemented");
+  m_fallback_cpu.SetGPR(reg, value);
 }
 
 void DynarecCPU::SetGPR(GPR reg, Mode mode, u32 value) {
-  ATOM_PANIC("unimplemented");
+  m_fallback_cpu.SetGPR(reg, mode, value);
 }
 
 void DynarecCPU::SetCPSR(PSR value) {
-  ATOM_PANIC("unimplemented");
+  m_fallback_cpu.SetCPSR(value);
 }
 
 void DynarecCPU::SetSPSR(Mode mode, PSR value) {
-  ATOM_PANIC("unimplemented");
+  m_fallback_cpu.SetSPSR(mode, value);
 }
 
 void DynarecCPU::Run(int cycles) {
-  ATOM_PANIC("unimplemented");
+  m_fallback_cpu.Run(cycles);
 }
 
 } // namespace dual::arm

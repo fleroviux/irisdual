@@ -7,6 +7,8 @@
 #include <dual/common/cycle_counter.hpp>
 #include <span>
 
+#include "arm/interpreter/interpreter_cpu.hpp"
+
 namespace dual::arm {
 
 class DynarecCPU final : public CPU {
@@ -46,6 +48,9 @@ class DynarecCPU final : public CPU {
     void SetSPSR(Mode mode, PSR value) override;
 
     void Run(int cycles) override;
+
+  private:
+    InterpreterCPU m_fallback_cpu;
 };
 
 } // namespace dual::arm
