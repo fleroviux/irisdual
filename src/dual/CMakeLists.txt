@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(SOURCES
+  src/arm/dynarec/dynarec_cpu.cpp
   src/arm/interpreter/tablegen/tablegen.cpp
   src/arm/interpreter/interpreter_cpu.cpp
   src/common/scheduler.cpp
@@ -50,6 +51,7 @@ set(SOURCES
 )
 
 set(HEADERS
+  src/arm/dynarec/dynarec_cpu.hpp
   src/arm/interpreter/handlers/arithmetic.inl
   src/arm/interpreter/handlers/handler16.inl
   src/arm/interpreter/handlers/handler32.inl

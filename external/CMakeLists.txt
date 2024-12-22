@@ -5,5 +5,4 @@ if(DUAL_ENABLE_JIT)
   add_subdirectory(lunatic)
 endif()
 
-
 add_subdirectory(oaknut)

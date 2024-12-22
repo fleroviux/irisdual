@@ -7,6 +7,7 @@
 #include <dual/nds/header.hpp>
 #include <dual/nds/backup/eeprom.hpp>
 
+#include "arm/dynarec/dynarec_cpu.hpp"
 #include "arm/interpreter/interpreter_cpu.hpp"
 #ifdef DUAL_ENABLE_JIT
   #include "arm/jit/lunatic_cpu.hpp"
@@ -88,6 +89,9 @@ namespace dual::nds {
 #endif
       default: ATOM_PANIC("unknown CPU emulator");
     }
+
+    // @todo: integrate the new dynamic recompiler more cleanly
+    m_arm7.cpu = std::make_unique<arm::DynarecCPU>(m_arm7.bus, m_scheduler, m_arm7.cycle_counter, arm::CPU::Model::ARM7);
 
     m_arm9.irq.SetCPU(m_arm9.cpu.get());
     m_arm7.irq.SetCPU(m_arm7.cpu.get());
