@@ -8,6 +8,7 @@
 #include <span>
 
 #include "arm/interpreter/interpreter_cpu.hpp"
+#include "state.hpp"
 
 namespace dual::arm {
 
@@ -51,6 +52,7 @@ class DynarecCPU final : public CPU {
 
   private:
     InterpreterCPU m_fallback_cpu;
+    jit::State m_state{};
 };
 
 } // namespace dual::arm
