@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(SOURCES
+  src/arm/dynarec/ir/disassemble.cpp
   src/arm/dynarec/dynarec_cpu.cpp
   src/arm/dynarec/state.cpp
   src/arm/interpreter/tablegen/tablegen.cpp
@@ -52,6 +53,8 @@ set(SOURCES
 )
 
 set(HEADERS
+  src/arm/dynarec/ir/basic_block.hpp
+  src/arm/dynarec/ir/disassemble.hpp
   src/arm/dynarec/ir/emitter.hpp
   src/arm/dynarec/ir/input.hpp
   src/arm/dynarec/ir/instruction.hpp
