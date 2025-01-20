@@ -8,6 +8,7 @@
 #include <span>
 
 #include "arm/interpreter/interpreter_cpu.hpp"
+#include "ir/emitter.hpp"
 #include "state.hpp"
 
 namespace dual::arm {

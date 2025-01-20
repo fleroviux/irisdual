@@ -52,6 +52,10 @@ set(SOURCES
 )
 
 set(HEADERS
+  src/arm/dynarec/ir/emitter.hpp
+  src/arm/dynarec/ir/input.hpp
+  src/arm/dynarec/ir/instruction.hpp
+  src/arm/dynarec/ir/value.hpp
   src/arm/dynarec/dynarec_cpu.hpp
   src/arm/dynarec/state.hpp
   src/arm/interpreter/handlers/arithmetic.inl
