@@ -53,6 +53,7 @@ class DynarecCPU final : public CPU {
   private:
     InterpreterCPU m_fallback_cpu;
     jit::State m_state{};
+    Memory& m_memory;
 };
 
 } // namespace dual::arm

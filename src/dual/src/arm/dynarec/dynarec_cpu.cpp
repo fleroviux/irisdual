@@ -12,7 +12,8 @@ DynarecCPU::DynarecCPU(
   CycleCounter& cycle_counter,
   Model model,
   std::span<const AttachCPn> coprocessors
-)   : m_fallback_cpu{memory, scheduler, cycle_counter, model, coprocessors} {
+)   : m_fallback_cpu{memory, scheduler, cycle_counter, model, coprocessors}
+    , m_memory{memory} {
 }
 
 void DynarecCPU::Reset() {
