@@ -84,15 +84,15 @@ void State::SetCPSR(PSR value) {
 }
 
 std::ptrdiff_t State::GetOffsetToGPR(GPR gpr, Mode mode) {
-  return (intptr_t)GetAddressOfGPR(gpr, mode) - (intptr_t)this;
+  return (const u8*)GetAddressOfGPR(gpr, mode) - (const u8*)this;
 }
 
 std::ptrdiff_t State::GetOffsetToSPSR(Mode mode) {
-  return (intptr_t)GetAddressOfSPSR(mode) - (intptr_t)this;
+  return (const u8*)GetAddressOfSPSR(mode) - (const u8*)this;
 }
 
 std::ptrdiff_t State::GetOffsetToCPSR() {
-  return offsetof(State, m_cpsr);
+  return (const u8*)&m_cpsr - (const u8*)this;
 }
 
 u32* State::GetAddressOfGPR(GPR gpr, Mode mode) {

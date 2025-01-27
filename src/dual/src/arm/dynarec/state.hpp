@@ -7,6 +7,8 @@
 #include <dual/arm/cpu.hpp>
 #include <cstddef>
 
+// TODO(fleroviux): figure out if std::ptrdiff_t is the appropriate return type for the GetOffsetTo*() methods.
+
 namespace dual::arm::jit {
 
 class State {
