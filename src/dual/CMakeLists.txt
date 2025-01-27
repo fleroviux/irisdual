@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(SOURCES
+  src/arm/dynarec/backend/arm64/arm64_backend.cpp
   src/arm/dynarec/ir/disassemble.cpp
   src/arm/dynarec/dynarec_cpu.cpp
   src/arm/dynarec/state.cpp
@@ -53,9 +54,12 @@ set(SOURCES
 )
 
 set(HEADERS
+  src/arm/dynarec/backend/arm64/arm64_backend.hpp
+  src/arm/dynarec/backend/backend.hpp
   src/arm/dynarec/ir/basic_block.hpp
   src/arm/dynarec/ir/disassemble.hpp
   src/arm/dynarec/ir/emitter.hpp
+  src/arm/dynarec/ir/function.hpp
   src/arm/dynarec/ir/input.hpp
   src/arm/dynarec/ir/instruction.hpp
   src/arm/dynarec/ir/value.hpp
@@ -124,7 +128,8 @@ endif()
 
 add_library(dual ${SOURCES} ${HEADERS} ${HEADERS_PUBLIC})
 
-target_link_libraries(dual PUBLIC atom-common atom-logger atom-math)
+target_link_libraries(dual PUBLIC atom-common atom-logger atom-math merry::oaknut capstone)
+target_include_directories(dual PRIVATE external/capstone/include) # Wauw
 if(DUAL_ENABLE_JIT)
   target_link_libraries(dual PRIVATE lunatic)
   target_compile_definitions(dual PUBLIC DUAL_ENABLE_JIT)

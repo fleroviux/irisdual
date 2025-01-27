@@ -2,6 +2,7 @@
 #include <atom/panic.hpp>
 
 #include "arm/interpreter/interpreter_cpu.hpp"
+#include "backend/arm64/arm64_backend.hpp"
 #include "dynarec_cpu.hpp"
 
 namespace dual::arm {
@@ -14,10 +15,13 @@ DynarecCPU::DynarecCPU(
   std::span<const AttachCPn> coprocessors
 )   : m_fallback_cpu{memory, scheduler, cycle_counter, model, coprocessors}
     , m_memory{memory} {
+  m_backend = std::make_unique<jit::ARM64Backend>(m_cpu_state);
 }
 
 void DynarecCPU::Reset() {
   m_fallback_cpu.Reset();
+  m_cpu_state.Reset();
+  TestBackend();
 }
 
 u32  DynarecCPU::GetExceptionBase() const {
@@ -88,6 +92,26 @@ void DynarecCPU::SetSPSR(Mode mode, PSR value) {
 
 void DynarecCPU::Run(int cycles) {
   m_fallback_cpu.Run(cycles);
+}
+
+void DynarecCPU::TestBackend() {
+  using namespace jit;
+
+  atom::Arena memory_arena{(sizeof(ir::Instruction) + sizeof(ir::Value)) * 4096};
+
+  ir::Function function{};
+  ir::Emitter emitter{function.basic_block, memory_arena};
+
+  const auto PrintCpuState = [&]() {
+    fmt::print("CPU STATE:\n");
+    for(int reg = 0; reg < 16; reg++) {
+      fmt::print("\tr{} \t= 0x{:08X}\n", reg, m_cpu_state.GetGPR((GPR)reg));
+    }
+  };
+  m_cpu_state.SetGPR(GPR::SP, 0xDEADBEEFu);
+  PrintCpuState();
+  m_backend->Execute(function);
+  PrintCpuState();
 }
 
 } // namespace dual::arm

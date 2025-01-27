@@ -5,6 +5,7 @@
 #include <atom/integer.hpp>
 #include <atom/panic.hpp>
 #include <dual/arm/cpu.hpp>
+#include <cstddef>
 
 namespace dual::arm::jit {
 
@@ -27,6 +28,10 @@ class State {
     void SetGPR(GPR gpr, Mode mode, u32 value);
     void SetSPSR(Mode mode, PSR value);
     void SetCPSR(PSR value);
+
+    std::ptrdiff_t GetOffsetToGPR(GPR gpr, Mode mode);
+    std::ptrdiff_t GetOffsetToSPSR(Mode mode);
+    std::ptrdiff_t GetOffsetToCPSR();
 
   private:
     struct LUT {

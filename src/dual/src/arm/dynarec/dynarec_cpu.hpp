@@ -5,9 +5,11 @@
 #include <dual/arm/memory.hpp>
 #include <dual/common/scheduler.hpp>
 #include <dual/common/cycle_counter.hpp>
+#include <memory>
 #include <span>
 
 #include "arm/interpreter/interpreter_cpu.hpp"
+#include "backend/backend.hpp"
 #include "ir/emitter.hpp"
 #include "state.hpp"
 
@@ -52,9 +54,12 @@ class DynarecCPU final : public CPU {
     void Run(int cycles) override;
 
   private:
+    void TestBackend();
+
     InterpreterCPU m_fallback_cpu;
-    jit::State m_state{};
+    jit::State m_cpu_state{};
     Memory& m_memory;
+    std::unique_ptr<jit::Backend> m_backend{};
 };
 
 } // namespace dual::arm

@@ -7,3 +7,6 @@
 [submodule "external/oaknut"]
 	path = external/oaknut
 	url = https://github.com/merryhime/oaknut
+[submodule "external/capstone"]
+	path = external/capstone
+	url = https://github.com/capstone-engine/capstone.git
