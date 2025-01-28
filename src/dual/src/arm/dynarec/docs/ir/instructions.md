@@ -35,7 +35,10 @@ stspsr %cpu_mode new_spsr_value<u32>
 
 ## Flag Management
 
-**TODO**
+### Convert Host Flags to NZCV Guest Flags
+```
+nzcv_value<u32> := cvt.hflags.nzcv hflag_value<hflag>
+```
 
 ## Data Processing
 
