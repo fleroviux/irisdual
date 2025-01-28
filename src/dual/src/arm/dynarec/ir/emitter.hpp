@@ -74,19 +74,19 @@ class Emitter {
     template<typename T>
     using ConstRef = std::add_lvalue_reference_t<std::add_const_t<T>>;
 
-    template<typename... ResultTypes, typename... ArgumentTypes>
-    std::tuple<ConstRef<ResultTypes>...> Emit(Type type, u16 flags, ArgumentTypes&&... args) {
-      static_assert(sizeof...(ResultTypes)   <= Instruction::max_ret_slots);
-      static_assert(sizeof...(ArgumentTypes) <= Instruction::max_arg_slots);
+    template<typename... OutTypes, typename... ArgTypes>
+    std::tuple<ConstRef<OutTypes>...> Emit(Type type, u16 flags, ArgTypes&&... args) {
+      static_assert(sizeof...(OutTypes)   <= Instruction::max_out_slots);
+      static_assert(sizeof...(ArgTypes) <= Instruction::max_arg_slots);
 
-      Instruction& instruction = AppendInstruction(type, flags, sizeof...(ArgumentTypes), sizeof...(ResultTypes));
+      Instruction& instruction = AppendInstruction(type, flags, sizeof...(ArgTypes), sizeof...(OutTypes));
 
-      if constexpr(sizeof...(ArgumentTypes) != 0u) {
-        SetArguments(instruction, 0, std::forward<ArgumentTypes>(args)...);
+      if constexpr(sizeof...(ArgTypes) != 0u) {
+        SetArgs(instruction, 0, std::forward<ArgTypes>(args)...);
       }
 
-      if constexpr(sizeof...(ResultTypes) != 0u) {
-        return CreateResultValues<ResultTypes...>(instruction, 0);
+      if constexpr(sizeof...(OutTypes) != 0u) {
+        return CreateOutValues<OutTypes...>(instruction, 0);
       } else {
         return {};
       }
@@ -111,44 +111,44 @@ class Emitter {
       return *instruction;
     }
 
-    template<typename ArgumentType, typename... RemainingArgumentTypes>
-    static void SetArguments(Instruction& instruction, int first_slot, ArgumentType&& arg, RemainingArgumentTypes&&... args) {
-      SetArgument(instruction, first_slot, std::forward<ArgumentType>(arg));
-      if constexpr(sizeof...(RemainingArgumentTypes) != 0u) {
-        SetArguments(instruction, first_slot + 1, std::forward<RemainingArgumentTypes>(args)...);
+    template<typename ArgType, typename... RemainingArgTypes>
+    static void SetArgs(Instruction& instruction, int first_slot, ArgType&& arg, RemainingArgTypes&&... args) {
+      SetArg(instruction, first_slot, std::forward<ArgType>(arg));
+      if constexpr(sizeof...(RemainingArgTypes) != 0u) {
+        SetArgs(instruction, first_slot + 1, std::forward<RemainingArgTypes>(args)...);
       }
     }
 
-    static void SetArgument(Instruction& instruction, int slot, const Value& value) {
+    static void SetArg(Instruction& instruction, int slot, const Value& value) {
       instruction.arg_slots[slot] = Input{value};
       value.use_refs.push_back({.instruction = &instruction, .slot = slot});
     }
 
-    static void SetArgument(Instruction& instruction, int slot, GPR gpr) {
+    static void SetArg(Instruction& instruction, int slot, GPR gpr) {
       instruction.arg_slots[slot] = Input{gpr};
     }
 
-    static void SetArgument(Instruction& instruction, int slot, Mode mode) {
+    static void SetArg(Instruction& instruction, int slot, Mode mode) {
       instruction.arg_slots[slot] = Input{mode};
     }
 
-    template<typename ResultType, typename... RemainingResultTypes>
-    std::tuple<ConstRef<ResultType>, ConstRef<RemainingResultTypes>...> CreateResultValues(Instruction& instruction, int first_slot) {
-      auto& value = CreateResultValue<ResultType>(instruction, first_slot);
-      if constexpr(sizeof...(RemainingResultTypes) == 0u) {
-        return std::tuple<const ResultType&>{value};
+    template<typename OutType, typename... RemainingOutTypes>
+    std::tuple<ConstRef<OutType>, ConstRef<RemainingOutTypes>...> CreateOutValues(Instruction& instruction, int first_slot) {
+      auto& value = CreateOutValue<OutType>(instruction, first_slot);
+      if constexpr(sizeof...(RemainingOutTypes) == 0u) {
+        return std::tuple<const OutType&>{value};
       } else {
-        return std::tuple_cat(std::tuple<const ResultType&>{value}, CreateResultValues<RemainingResultTypes...>(instruction, first_slot + 1));
+        return std::tuple_cat(std::tuple<const OutType&>{value}, CreateOutValues<RemainingOutTypes...>(instruction, first_slot + 1));
       }
     }
 
-    template<typename ResultType>
-    requires std::is_base_of_v<Value, ResultType>
-    const ResultType& CreateResultValue(Instruction& instruction, int slot) {
-      auto& value = CreateValue<ResultType>();
+    template<typename OutType>
+    requires std::is_base_of_v<Value, OutType>
+    const OutType& CreateOutValue(Instruction& instruction, int slot) {
+      auto& value = CreateValue<OutType>();
       value.create_ref.instruction = &instruction;
       value.create_ref.slot = slot;
-      instruction.ret_slots[slot] = value.id;
+      instruction.out_slots[slot] = value.id;
       return value;
     }
 

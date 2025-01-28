@@ -32,15 +32,15 @@ struct Instruction {
   };
 
   static constexpr size_t max_arg_slots = 3u;
-  static constexpr size_t max_ret_slots = 2u; // @todo: make naming consistent
+  static constexpr size_t max_out_slots = 2u;
 
-  Instruction(Type type, u16 flags, u8 arg_slot_count, u8 ret_slot_count)
+  Instruction(Type type, u16 flags, u8 arg_slot_count, u8 out_slot_count)
       : type{type}
       , flags{flags}
       , arg_slot_count{arg_slot_count}
-      , ret_slot_count{ret_slot_count} {
+      , out_slot_count{out_slot_count} {
     arg_slots.fill({});
-    ret_slots.fill(Value::invalid_id);
+    out_slots.fill(Value::invalid_id);
   }
 
   [[nodiscard]] const Input& GetArg(size_t arg_index) const {
@@ -48,20 +48,20 @@ struct Instruction {
   }
 
   [[nodiscard]] Value::ID GetOut(size_t out_index) const {
-    return ret_slots[out_index];
+    return out_slots[out_index];
   }
 
   Type type;
   u16 flags;
   u8 arg_slot_count;
-  u8 ret_slot_count;
+  u8 out_slot_count;
   std::array<Input,     max_arg_slots> arg_slots{};
-  std::array<Value::ID, max_ret_slots> ret_slots{};
+  std::array<Value::ID, max_out_slots> out_slots{};
   Instruction* prev{};
   Instruction* next{};
 
   static_assert(max_arg_slots <= std::numeric_limits<decltype(arg_slot_count)>::max());
-  static_assert(max_ret_slots <= std::numeric_limits<decltype(ret_slot_count)>::max());
+  static_assert(max_out_slots <= std::numeric_limits<decltype(out_slot_count)>::max());
 };
 
 } // namespace dual::arm::jit::ir

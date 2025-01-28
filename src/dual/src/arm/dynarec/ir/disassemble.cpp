@@ -39,20 +39,20 @@ std::string disassemble(const BasicBlock& basic_block) {
   const ir::Instruction* instruction = basic_block.head;
 
   while(instruction != nullptr) {
-    const size_t ret_slot_count = instruction->ret_slot_count;
+    const size_t out_slot_count = instruction->out_slot_count;
     const size_t arg_slot_count = instruction->arg_slot_count;
 
-    if(ret_slot_count != 0u) {
-      for(size_t slot = 0; slot < ret_slot_count; slot++) {
-        disassembled_code += fmt::format("v{:03}", instruction->ret_slots[slot]);
-        if(slot != ret_slot_count - 1) {
+    if(out_slot_count != 0u) {
+      for(size_t slot = 0; slot < out_slot_count; slot++) {
+        disassembled_code += fmt::format("v{}", instruction->out_slots[slot]);
+        if(slot != out_slot_count - 1) {
           disassembled_code += ", ";
         }
       }
 
-      disassembled_code += " := ";
+      disassembled_code += "\t := ";
     } else {
-      disassembled_code += "        "; // indent to same level as other instructions
+      disassembled_code += "\t    "; // indent to same level as other instructions
     }
 
     disassembled_code += get_instruction_mnemonic(instruction->type);
