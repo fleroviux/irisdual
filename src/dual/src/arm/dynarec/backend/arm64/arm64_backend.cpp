@@ -6,6 +6,7 @@
 #include <capstone/capstone.h>
 #include <vector>
 
+#include "arm/dynarec/ir/disassemble.hpp"
 #include "arm64_backend.hpp"
 #include "arm64_value_location.hpp"
 
@@ -20,17 +21,14 @@ ARM64Backend::ARM64Backend(State& cpu_state)
 void ARM64Backend::Execute(const ir::Function& function) {
   using namespace oaknut::util;
 
-  // X0 = CPU state reg
+  static constexpr auto XReg_State = X0;
 
   oaknut::CodeBlock code_block{4096u};
   oaknut::CodeGenerator code{code_block.ptr()};
 
   const void* code_begin = code.xptr<void*>();
   code_block.unprotect();
-  code.MOVP2R(X0, &m_cpu_state);
-//  code.LDR(W1, X0, m_cpu_state.GetOffsetToGPR(CPU::GPR::SP, CPU::Mode::Supervisor));
-//  code.ADD(W1, W1, 1);
-//  code.STR(W1, X0, m_cpu_state.GetOffsetToGPR(CPU::GPR::SP, CPU::Mode::Supervisor));
+  code.MOVP2R(XReg_State, &m_cpu_state);
 
   {
     const ir::BasicBlock& basic_block = function.basic_block;
@@ -55,13 +53,13 @@ void ARM64Backend::Execute(const ir::Function& function) {
         case ir::Instruction::Type::LDGPR: {
           const ir::GPR gpr = instruction->GetArg(0u).AsGPR();
           const oaknut::WReg result_reg = GetLocation(instruction->GetOut(0u)).AsWReg();
-          code.LDR(result_reg, X0, m_cpu_state.GetOffsetToGPR(gpr, CPU::Mode::Supervisor)); // TODO: cpu mode
+          code.LDR(result_reg, XReg_State, m_cpu_state.GetOffsetToGPR(gpr, CPU::Mode::Supervisor)); // TODO: cpu mode
           break;
         }
         case ir::Instruction::Type::STGPR: {
           const ir::GPR gpr = instruction->GetArg(0u).AsGPR();
           const oaknut::WReg value_reg = GetLocation(instruction->GetArg(1u).AsValue()).AsWReg(); // TODO: assumes that value is not a constant!
-          code.STR(value_reg, X0, m_cpu_state.GetOffsetToGPR(gpr, CPU::Mode::Supervisor)); // TODO: cpu mode
+          code.STR(value_reg, XReg_State, m_cpu_state.GetOffsetToGPR(gpr, CPU::Mode::Supervisor)); // TODO: cpu mode
           break;
         }
         default: {
@@ -78,7 +76,12 @@ void ARM64Backend::Execute(const ir::Function& function) {
   code.RET();
   code_block.protect();
   code_block.invalidate_all();
+
+  fmt::print("===========================================\n");
+  fmt::print("IR:\n{}\n", ir::disassemble(function.basic_block));
+  fmt::print("ARM64:\n");
   DisasA64(code_begin, code.xptr<void*>());
+  fmt::print("===========================================\n");
 
   ((void (*)())code_begin)();
 }
