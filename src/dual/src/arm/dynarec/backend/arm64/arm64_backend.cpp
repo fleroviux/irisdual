@@ -4,8 +4,10 @@
 #include <oaknut/code_block.hpp>
 #include <oaknut/oaknut.hpp>
 #include <capstone/capstone.h>
+#include <vector>
 
 #include "arm64_backend.hpp"
+#include "arm64_value_location.hpp"
 
 namespace dual::arm::jit {
 
@@ -18,15 +20,61 @@ ARM64Backend::ARM64Backend(State& cpu_state)
 void ARM64Backend::Execute(const ir::Function& function) {
   using namespace oaknut::util;
 
+  // X0 = CPU state reg
+
   oaknut::CodeBlock code_block{4096u};
   oaknut::CodeGenerator code{code_block.ptr()};
 
   const void* code_begin = code.xptr<void*>();
   code_block.unprotect();
   code.MOVP2R(X0, &m_cpu_state);
-  code.LDR(W1, X0, m_cpu_state.GetOffsetToGPR(CPU::GPR::SP, CPU::Mode::Supervisor));
-  code.ADD(W1, W1, 1);
-  code.STR(W1, X0, m_cpu_state.GetOffsetToGPR(CPU::GPR::SP, CPU::Mode::Supervisor));
+//  code.LDR(W1, X0, m_cpu_state.GetOffsetToGPR(CPU::GPR::SP, CPU::Mode::Supervisor));
+//  code.ADD(W1, W1, 1);
+//  code.STR(W1, X0, m_cpu_state.GetOffsetToGPR(CPU::GPR::SP, CPU::Mode::Supervisor));
+
+  {
+    const ir::BasicBlock& basic_block = function.basic_block;
+
+    // here comes the poor girl's register allocator!
+    std::vector<ARM64ValueLocation> location_map{};
+    location_map.resize(basic_block.values.size());
+    if(location_map.size() > 15) {
+      ATOM_PANIC("out of registers");
+    }
+    for(int i = 0; i < location_map.size(); i++) {
+      location_map[i] = ARM64ValueLocation{oaknut::WReg{i + 1}};
+    }
+    const auto GetLocation = [&](ir::Value::ID value_id) {
+      return location_map[value_id];
+    };
+
+    ir::Instruction* instruction = basic_block.head;
+
+    while(instruction != nullptr) {
+      switch(instruction->type) {
+        case ir::Instruction::Type::LDGPR: {
+          const ir::GPR gpr = instruction->GetArg(0u).AsGPR();
+          const oaknut::WReg result_reg = GetLocation(instruction->GetOut(0u)).AsWReg();
+          code.LDR(result_reg, X0, m_cpu_state.GetOffsetToGPR(gpr, CPU::Mode::Supervisor)); // TODO: cpu mode
+          break;
+        }
+        case ir::Instruction::Type::STGPR: {
+          const ir::GPR gpr = instruction->GetArg(0u).AsGPR();
+          const oaknut::WReg value_reg = GetLocation(instruction->GetArg(1u).AsValue()).AsWReg(); // TODO: assumes that value is not a constant!
+          code.STR(value_reg, X0, m_cpu_state.GetOffsetToGPR(gpr, CPU::Mode::Supervisor)); // TODO: cpu mode
+          break;
+        }
+        default: {
+          ATOM_PANIC("unhandled IR instruction type: {}", (int)instruction->type);
+        }
+      }
+
+      instruction = instruction->next;
+    }
+
+
+  }
+
   code.RET();
   code_block.protect();
   code_block.invalidate_all();

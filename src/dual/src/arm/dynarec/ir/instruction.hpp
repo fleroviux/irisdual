@@ -43,6 +43,14 @@ struct Instruction {
     ret_slots.fill(Value::invalid_id);
   }
 
+  [[nodiscard]] const Input& GetArg(size_t arg_index) const {
+    return arg_slots[arg_index];
+  }
+
+  [[nodiscard]] Value::ID GetOut(size_t out_index) const {
+    return ret_slots[out_index];
+  }
+
   Type type;
   u16 flags;
   u8 arg_slot_count;

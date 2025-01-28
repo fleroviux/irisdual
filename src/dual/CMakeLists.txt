@@ -55,6 +55,7 @@ set(SOURCES
 
 set(HEADERS
   src/arm/dynarec/backend/arm64/arm64_backend.hpp
+  src/arm/dynarec/backend/arm64/arm64_value_location.hpp
   src/arm/dynarec/backend/backend.hpp
   src/arm/dynarec/ir/basic_block.hpp
   src/arm/dynarec/ir/disassemble.hpp
