@@ -62,6 +62,16 @@ void ARM64Backend::Execute(const ir::Function& function) {
           code.STR(value_reg, XReg_State, m_cpu_state.GetOffsetToGPR(gpr, CPU::Mode::Supervisor)); // TODO: cpu mode
           break;
         }
+        case ir::Instruction::Type::LDCPSR: {
+          const oaknut::WReg result_reg = GetLocation(instruction->GetOut(0u)).AsWReg();
+          code.LDR(result_reg, XReg_State, m_cpu_state.GetOffsetToCPSR());
+          break;
+        }
+        case ir::Instruction::Type::STCPSR: {
+          const oaknut::WReg value_reg = GetLocation(instruction->GetArg(0u).AsValue()).AsWReg();
+          code.STR(value_reg, XReg_State, m_cpu_state.GetOffsetToCPSR());
+          break;
+        }
         case ir::Instruction::Type::ADD: {
           const oaknut::WReg lhs_reg = GetLocation(instruction->GetArg(0u).AsValue()).AsWReg(); // TODO: assumes that value is not a constant!
           const oaknut::WReg rhs_reg = GetLocation(instruction->GetArg(1u).AsValue()).AsWReg(); // TODO: assumes that value is not a constant!

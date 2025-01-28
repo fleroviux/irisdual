@@ -101,11 +101,16 @@ void DynarecCPU::TestBackend() {
 
   ir::Function function{};
   ir::Emitter emitter{function.basic_block, memory_arena};
+
   const ir::U32Value& value_r0 = emitter.LDGPR(GPR::R0);
   const ir::U32Value& value_r1 = emitter.LDGPR(GPR::R1);
+
   const ir::HostFlagsValue* value_host_flags;
   const ir::U32Value& add_result = emitter.ADD(value_r0, value_r1, &value_host_flags);
   emitter.STGPR(GPR::R2, add_result);
+
+  const ir::U32Value& value_cpsr = emitter.LDCPSR();
+  emitter.STCPSR(value_cpsr);
 
   const auto PrintCpuState = [&]() {
     fmt::print("CPU STATE:\n");
