@@ -12,8 +12,23 @@ static const char* get_instruction_mnemonic(Instruction::Type type) {
     case Instruction::Type::STGPR:  return "stgpr";
     case Instruction::Type::LDCPSR: return "ldcpsr";
     case Instruction::Type::STCPSR: return "stcpsr";
+    case Instruction::Type::LDSPSR: return "ldspsr";
+    case Instruction::Type::STSPSR: return "stspsr";
     case Instruction::Type::ADD: return "add";
     default: ATOM_PANIC("unhandled instruction type: {}", (int)type);
+  }
+}
+
+static const char* get_cpu_mode_label(Mode cpu_mode) {
+  switch(cpu_mode) {
+    case Mode::User:       return "usr";
+    case Mode::FIQ:        return "fiq";
+    case Mode::IRQ:        return "irq";
+    case Mode::Supervisor: return "svc";
+    case Mode::Abort:      return "abt";
+    case Mode::Undefined:  return "udf";
+    case Mode::System:     return "sys";
+    default: ATOM_PANIC("unhandled CPU mode: {}", (int)cpu_mode);
   }
 }
 
@@ -74,6 +89,14 @@ std::string disassemble(const BasicBlock& basic_block) {
         case ir::Input::Type::GPR: {
           disassembled_code += fmt::format("r{}", (int)arg.AsGPR());
           break;
+        }
+        case ir::Input::Type::Mode: {
+          disassembled_code += "%";
+          disassembled_code += get_cpu_mode_label(arg.AsMode());
+          break;
+        }
+        default: {
+          ATOM_PANIC("unhandled input type: {}", (int)arg.GetType());
         }
       }
 

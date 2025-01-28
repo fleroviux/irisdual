@@ -17,6 +17,8 @@ struct Instruction {
     STGPR,
     LDCPSR,
     STCPSR,
+    LDSPSR,
+    STSPSR,
 
     // Flag Management
     // ...
@@ -29,7 +31,7 @@ struct Instruction {
     OutputHostFlags = 1 << 0
   };
 
-  static constexpr size_t max_arg_slots = 2u;
+  static constexpr size_t max_arg_slots = 3u;
   static constexpr size_t max_ret_slots = 2u; // @todo: make naming consistent
 
   Instruction(Type type, u16 flags, u8 arg_slot_count, u8 ret_slot_count)

@@ -102,21 +102,26 @@ void DynarecCPU::TestBackend() {
   ir::Function function{};
   ir::Emitter emitter{function.basic_block, memory_arena};
 
-  const ir::U32Value& value_r0 = emitter.LDGPR(GPR::R0);
-  const ir::U32Value& value_r1 = emitter.LDGPR(GPR::R1);
+  const ir::U32Value& value_r0 = emitter.LDGPR(GPR::R0, Mode::Supervisor);
+  const ir::U32Value& value_r1 = emitter.LDGPR(GPR::R1, Mode::Supervisor);
 
   const ir::HostFlagsValue* value_host_flags;
   const ir::U32Value& add_result = emitter.ADD(value_r0, value_r1, &value_host_flags);
-  emitter.STGPR(GPR::R2, add_result);
+  emitter.STGPR(GPR::R2, Mode::Supervisor, add_result);
 
   const ir::U32Value& value_cpsr = emitter.LDCPSR();
   emitter.STCPSR(value_cpsr);
 
+  const ir::U32Value& value_spsr = emitter.LDSPSR(Mode::Supervisor);
+  emitter.STSPSR(Mode::Supervisor, value_spsr);
+
   const auto PrintCpuState = [&]() {
     fmt::print("CPU STATE:\n");
     for(int reg = 0; reg < 16; reg++) {
-      fmt::print("\tr{} \t= 0x{:08X}\n", reg, m_cpu_state.GetGPR((GPR)reg));
+      fmt::print("\tR{} \t= 0x{:08X}\n", reg, m_cpu_state.GetGPR((GPR)reg));
     }
+    fmt::print("\tCPSR \t= 0x{:08X}\n", m_cpu_state.GetCPSR().word);
+    fmt::print("\tSPSR \t= 0x{:08X}\n", m_cpu_state.GetSPSR((Mode)m_cpu_state.GetCPSR().mode).word);
   };
   m_cpu_state.SetGPR(GPR::R0, 0x80000000);
   m_cpu_state.SetGPR(GPR::R1, 0x80000000);

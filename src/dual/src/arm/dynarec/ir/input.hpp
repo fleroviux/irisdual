@@ -9,18 +9,21 @@
 namespace dual::arm::jit::ir {
 
 using GPR = dual::arm::CPU::GPR;
+using Mode = dual::arm::CPU::Mode;
 
 class Input {
   public:
     enum class Type {
       Null,
       Value,
-      GPR
+      GPR,
+      Mode
     };
 
     Input() : m_type{Type::Null} {}
     explicit Input(const Value& value) : m_type{Type::Value}, m_value{value.id} {}
     explicit Input(GPR gpr) : m_type{Type::GPR}, m_gpr{gpr} {}
+    explicit Input(Mode mode) : m_type{Type::Mode}, m_mode{mode} {}
 
     [[nodiscard]] Type GetType() const { return m_type; }
     [[nodiscard]] bool Is(Type type) const { return m_type == type; }
@@ -33,6 +36,11 @@ class Input {
     [[nodiscard]] GPR AsGPR() const {
       DebugCheckType(Type::GPR);
       return m_gpr;
+    }
+
+    [[nodiscard]] Mode AsMode() const {
+      DebugCheckType(Type::Mode);
+      return m_mode;
     }
 
   private:
@@ -48,6 +56,7 @@ class Input {
     union {
       Value::ID m_value;
       GPR m_gpr;
+      Mode m_mode;
     };
 };
 

@@ -52,14 +52,16 @@ void ARM64Backend::Execute(const ir::Function& function) {
       switch(instruction->type) {
         case ir::Instruction::Type::LDGPR: {
           const ir::GPR gpr = instruction->GetArg(0u).AsGPR();
+          const ir::Mode cpu_mode = instruction->GetArg(1u).AsMode();
           const oaknut::WReg result_reg = GetLocation(instruction->GetOut(0u)).AsWReg();
-          code.LDR(result_reg, XReg_State, m_cpu_state.GetOffsetToGPR(gpr, CPU::Mode::Supervisor)); // TODO: cpu mode
+          code.LDR(result_reg, XReg_State, m_cpu_state.GetOffsetToGPR(gpr, cpu_mode));
           break;
         }
         case ir::Instruction::Type::STGPR: {
           const ir::GPR gpr = instruction->GetArg(0u).AsGPR();
-          const oaknut::WReg value_reg = GetLocation(instruction->GetArg(1u).AsValue()).AsWReg(); // TODO: assumes that value is not a constant!
-          code.STR(value_reg, XReg_State, m_cpu_state.GetOffsetToGPR(gpr, CPU::Mode::Supervisor)); // TODO: cpu mode
+          const ir::Mode cpu_mode = instruction->GetArg(1u).AsMode();
+          const oaknut::WReg value_reg = GetLocation(instruction->GetArg(2u).AsValue()).AsWReg(); // TODO: assumes that value is not a constant!
+          code.STR(value_reg, XReg_State, m_cpu_state.GetOffsetToGPR(gpr, cpu_mode));
           break;
         }
         case ir::Instruction::Type::LDCPSR: {
@@ -70,6 +72,18 @@ void ARM64Backend::Execute(const ir::Function& function) {
         case ir::Instruction::Type::STCPSR: {
           const oaknut::WReg value_reg = GetLocation(instruction->GetArg(0u).AsValue()).AsWReg();
           code.STR(value_reg, XReg_State, m_cpu_state.GetOffsetToCPSR());
+          break;
+        }
+        case ir::Instruction::Type::LDSPSR: {
+          const ir::Mode cpu_mode = instruction->GetArg(0u).AsMode();
+          const oaknut::WReg result_reg = GetLocation(instruction->GetOut(0u)).AsWReg();
+          code.LDR(result_reg, XReg_State, m_cpu_state.GetOffsetToSPSR(cpu_mode));
+          break;
+        }
+        case ir::Instruction::Type::STSPSR: {
+          const ir::Mode cpu_mode = instruction->GetArg(0u).AsMode();
+          const oaknut::WReg value_reg = GetLocation(instruction->GetArg(1u).AsValue()).AsWReg();
+          code.STR(value_reg, XReg_State, m_cpu_state.GetOffsetToSPSR(cpu_mode));
           break;
         }
         case ir::Instruction::Type::ADD: {

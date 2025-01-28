@@ -34,12 +34,12 @@ class Emitter {
       return value;
     }
 
-    const U32Value& LDGPR(GPR gpr) {
-      return std::get<0>(Emit<U32Value>(Type::LDGPR, 0u, gpr));
+    const U32Value& LDGPR(GPR gpr, Mode cpu_mode) {
+      return std::get<0>(Emit<U32Value>(Type::LDGPR, 0u, gpr, cpu_mode));
     }
 
-    void STGPR(GPR gpr, const U32Value& value) {
-      Emit(Instruction::Type::STGPR, 0u, gpr, value);
+    void STGPR(GPR gpr, Mode cpu_mode,  const U32Value& value) {
+      Emit(Instruction::Type::STGPR, 0u, gpr, cpu_mode, value);
     }
 
     const U32Value& LDCPSR() {
@@ -48,6 +48,14 @@ class Emitter {
 
     void STCPSR(const U32Value& value) {
       Emit(Type::STCPSR, 0u, value);
+    }
+
+    const U32Value& LDSPSR(Mode cpu_mode) {
+      return std::get<0>(Emit<U32Value>(Type::LDSPSR, 0u, cpu_mode));
+    }
+
+    void STSPSR(Mode cpu_mode, const U32Value& value) {
+      Emit(Type::STSPSR, 0u, cpu_mode, value);
     }
 
     const U32Value& ADD(const U32Value& lhs, const U32Value& rhs, const HostFlagsValue** hflags_out = nullptr) {
@@ -118,6 +126,10 @@ class Emitter {
 
     static void SetArgument(Instruction& instruction, int slot, GPR gpr) {
       instruction.arg_slots[slot] = Input{gpr};
+    }
+
+    static void SetArgument(Instruction& instruction, int slot, Mode mode) {
+      instruction.arg_slots[slot] = Input{mode};
     }
 
     template<typename ResultType, typename... RemainingResultTypes>
