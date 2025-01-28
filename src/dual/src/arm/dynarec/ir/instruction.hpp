@@ -23,7 +23,7 @@ struct Instruction {
     // Flag Management
     // ...
 
-    // Binary Ops
+    // Data processing
     ADD,
   };
 
