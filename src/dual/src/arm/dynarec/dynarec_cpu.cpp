@@ -112,6 +112,7 @@ void DynarecCPU::TestBackend() {
   // TODO: merge with original CPSR value
   //const ir::U32Value& value_cpsr = emitter.LDCPSR();
   const ir::U32Value& value_nzcv = emitter.CVT_HFLAG_NZCV(*value_hflags);
+  emitter.LDCONST(0xF0000000u);
   emitter.STCPSR(value_nzcv);
 
 //  const ir::U32Value& value_cpsr = emitter.LDCPSR();

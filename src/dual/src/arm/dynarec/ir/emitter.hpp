@@ -22,16 +22,8 @@ class Emitter {
         , m_arena{arena} {
     }
 
-    const U32Value& Const(u32 imm_u32) {
-      auto& value = CreateValue<U32Value>();
-      value.create_ref.imm_u64 = imm_u32;
-      return value;
-    }
-
-    const I32Value& Const(i32 imm_i32) {
-      auto& value = CreateValue<I32Value>();
-      value.create_ref.imm_i64 = imm_i32;
-      return value;
+    const U32Value& LDCONST(u32 const_u32) {
+      return std::get<0>(Emit<U32Value>(Type::LDCONST, 0u, const_u32));
     }
 
     const U32Value& LDGPR(GPR gpr, Mode cpu_mode) {
@@ -134,6 +126,10 @@ class Emitter {
 
     static void SetArg(Instruction& instruction, int slot, Mode mode) {
       instruction.arg_slots[slot] = Input{mode};
+    }
+
+    static void SetArg(Instruction& instruction, int slot, u32 const_u32) {
+      instruction.arg_slots[slot] = Input{const_u32};
     }
 
     template<typename OutType, typename... RemainingOutTypes>

@@ -8,12 +8,13 @@ namespace dual::arm::jit::ir {
 
 static const char* get_instruction_mnemonic(Instruction::Type type) {
   switch(type) {
-    case Instruction::Type::LDGPR:  return "ldgpr";
-    case Instruction::Type::STGPR:  return "stgpr";
-    case Instruction::Type::LDCPSR: return "ldcpsr";
-    case Instruction::Type::STCPSR: return "stcpsr";
-    case Instruction::Type::LDSPSR: return "ldspsr";
-    case Instruction::Type::STSPSR: return "stspsr";
+    case Instruction::Type::LDCONST: return "ldconst";
+    case Instruction::Type::LDGPR:   return "ldgpr";
+    case Instruction::Type::STGPR:   return "stgpr";
+    case Instruction::Type::LDCPSR:  return "ldcpsr";
+    case Instruction::Type::STCPSR:  return "stcpsr";
+    case Instruction::Type::LDSPSR:  return "ldspsr";
+    case Instruction::Type::STSPSR:  return "stspsr";
     case Instruction::Type::CVT_HFLAG_NZCV: return "cvt.hflag.nzcv";
     case Instruction::Type::ADD: return "add";
     default: ATOM_PANIC("unhandled instruction type: {}", (int)type);
@@ -72,19 +73,7 @@ std::string disassemble(const BasicBlock& basic_block) {
           break;
         }
         case ir::Input::Type::Value: {
-          ir::Value::ID value_id = arg.AsValue();
-
-          const ir::Value& value = *basic_block.values[value_id];
-          if(value.create_ref.instruction == nullptr) {
-            switch(value.data_type) {
-              case ir::Value::DataType::U32: disassembled_code += fmt::format("0x{:08X}_u32", value.create_ref.imm_u64); break;
-              case ir::Value::DataType::I32: disassembled_code += fmt::format("0x{:08X}_i32", value.create_ref.imm_i64); break;
-              default: ATOM_PANIC("unhandled constant data type: {}", (int)value.data_type);
-            }
-
-          } else {
-            disassembled_code += fmt::format("v{}", value_id);
-          }
+          disassembled_code += fmt::format("v{}", arg.AsValue());
           break;
         }
         case ir::Input::Type::GPR: {
@@ -94,6 +83,10 @@ std::string disassemble(const BasicBlock& basic_block) {
         case ir::Input::Type::Mode: {
           disassembled_code += "%";
           disassembled_code += get_cpu_mode_label(arg.AsMode());
+          break;
+        }
+        case ir::Input::Type::ConstU32: {
+          disassembled_code += fmt::format("0x{:08X}_u32", arg.AsConstU32());
           break;
         }
         default: {

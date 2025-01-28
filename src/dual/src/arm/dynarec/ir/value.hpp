@@ -12,11 +12,7 @@ struct Instruction;
 
 struct Ref {
   const Instruction* instruction{};
-  union {
-    int slot;    //< instruction != null case
-    u64 imm_u64; //< instruction == null case
-    i64 imm_i64;
-  };
+  int slot;
 };
 
 struct Value : atom::NonCopyable {
@@ -26,7 +22,6 @@ struct Value : atom::NonCopyable {
 
   enum class DataType : u8 {
     U32,
-    I32,
     HostFlags
   };
 
@@ -44,7 +39,6 @@ struct TypedValue : Value {
 };
 
 using U32Value = TypedValue<Value::DataType::U32>;
-using I32Value = TypedValue<Value::DataType::I32>;
 using HostFlagsValue = TypedValue<Value::DataType::HostFlags>;
 
 } // namespace dual::arm::jit::ir

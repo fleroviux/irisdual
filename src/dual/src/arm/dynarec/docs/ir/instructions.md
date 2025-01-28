@@ -1,6 +1,14 @@
 
 # IR instruction set
 
+## Constants
+
+### Load constant
+
+```
+const_value<u32> := ldconst 0xABAD1DEA_u32
+```
+
 ## Context Load/Store
 
 ### Load from GPR
@@ -41,6 +49,8 @@ nzcv_value<u32> := cvt.hflags.nzcv hflag_value<hflag>
 ```
 
 ## Data Processing
+
+### ADD(S)
 
 ```
 result_value<u32>                     := add   lhs_value<u32>, rhs_value<u32>

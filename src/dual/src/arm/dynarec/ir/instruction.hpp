@@ -12,6 +12,9 @@ namespace dual::arm::jit::ir {
 
 struct Instruction {
   enum class Type : u16 {
+    // Constant Loading
+    LDCONST,
+
     // Guest Context Read/Write
     LDGPR,
     STGPR,
@@ -25,7 +28,18 @@ struct Instruction {
     // ...
 
     // Data processing
+//    AND,
+//    BIC,
+//    EOR,
+//    SUB,
+//    RSB,
     ADD,
+//    ADC,
+//    SBC,
+//    RSC,
+//    ORR,
+//    MOV,
+//    MVN,
   };
 
   enum Flag : u16 {

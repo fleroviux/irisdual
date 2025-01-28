@@ -50,6 +50,11 @@ void ARM64Backend::Execute(const ir::Function& function) {
 
     while(instruction != nullptr) {
       switch(instruction->type) {
+        case ir::Instruction::Type::LDCONST: {
+          const oaknut::WReg result_reg = GetLocation(instruction->GetOut(0u)).AsWReg();
+          code.MOV(result_reg, instruction->GetArg(0u).AsConstU32());
+          break;
+        }
         case ir::Instruction::Type::LDGPR: {
           const ir::GPR gpr = instruction->GetArg(0u).AsGPR();
           const ir::Mode cpu_mode = instruction->GetArg(1u).AsMode();
@@ -60,7 +65,7 @@ void ARM64Backend::Execute(const ir::Function& function) {
         case ir::Instruction::Type::STGPR: {
           const ir::GPR gpr = instruction->GetArg(0u).AsGPR();
           const ir::Mode cpu_mode = instruction->GetArg(1u).AsMode();
-          const oaknut::WReg value_reg = GetLocation(instruction->GetArg(2u).AsValue()).AsWReg(); // TODO: assumes that value is not a constant!
+          const oaknut::WReg value_reg = GetLocation(instruction->GetArg(2u).AsValue()).AsWReg();
           code.STR(value_reg, XReg_State, m_cpu_state.GetOffsetToGPR(gpr, cpu_mode));
           break;
         }
@@ -93,8 +98,8 @@ void ARM64Backend::Execute(const ir::Function& function) {
           break;
         }
         case ir::Instruction::Type::ADD: {
-          const oaknut::WReg lhs_reg = GetLocation(instruction->GetArg(0u).AsValue()).AsWReg(); // TODO: assumes that value is not a constant!
-          const oaknut::WReg rhs_reg = GetLocation(instruction->GetArg(1u).AsValue()).AsWReg(); // TODO: assumes that value is not a constant!
+          const oaknut::WReg lhs_reg = GetLocation(instruction->GetArg(0u).AsValue()).AsWReg();
+          const oaknut::WReg rhs_reg = GetLocation(instruction->GetArg(1u).AsValue()).AsWReg();
           const oaknut::WReg result_reg = GetLocation(instruction->GetOut(0u)).AsWReg();
 
           if(instruction->flags & ir::Instruction::Flag::OutputHostFlags) {
