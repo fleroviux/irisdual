@@ -35,7 +35,7 @@ class Emitter {
     }
 
     const U32Value& LDGPR(GPR gpr) {
-      return std::get<0>(Emit<U32Value>(Instruction::Type::LDGPR, 0u, gpr));
+      return std::get<0>(Emit<U32Value>(Type::LDGPR, 0u, gpr));
     }
 
     void STGPR(GPR gpr, const U32Value& value) {
@@ -43,35 +43,31 @@ class Emitter {
     }
 
     const U32Value& LDCPSR() {
-      return std::get<0>(Emit<U32Value>(Instruction::Type::LDCPSR, 0u));
+      return std::get<0>(Emit<U32Value>(Type::LDCPSR, 0u));
     }
 
     void STCPSR(const U32Value& value) {
-      Emit(Instruction::Type::STCPSR, 0u, value);
+      Emit(Type::STCPSR, 0u, value);
     }
 
-    const U32Value& CVT_HFLAG2NZCV(const HostFlagsValue& hflags) {
-      return std::get<0>(Emit<U32Value>(Instruction::Type::CVT_HFLAG2NZCV, 0u, hflags));
-    }
-
-    const U32Value& CVT_HFLAG2Q(const HostFlagsValue& hflags) {
-      return std::get<0>(Emit<U32Value>(Instruction::Type::CVT_HFLAG2Q, 0u, hflags));
-    }
-
-    const HostFlagsValue& CVT_NZCV2HFLAG(const U32Value& nzcv) {
-      return std::get<0>(Emit<HostFlagsValue>(Instruction::Type::CVT_NZCV2HFLAG, 0u, nzcv));
-    }
-
-    const U32Value& ADD(const U32Value& lhs, const U32Value& rhs) {
-      return std::get<0>(Emit<U32Value>(Instruction::Type::ADD, 0u, lhs, rhs));
+    const U32Value& ADD(const U32Value& lhs, const U32Value& rhs, const HostFlagsValue** hflags_out = nullptr) {
+      if(hflags_out) {
+        const auto [result_value, hflags_value] = Emit<U32Value, HostFlagsValue>(Type::ADD, Flag::OutputHostFlags, lhs, rhs);
+        *hflags_out = &hflags_value;
+        return result_value;
+      }
+      return std::get<0>(Emit<U32Value>(Type::ADD, 0u, lhs, rhs));
     }
 
   private:
+    using Type = Instruction::Type;
+    using Flag = Instruction::Flag;
+
     template<typename T>
     using ConstRef = std::add_lvalue_reference_t<std::add_const_t<T>>;
 
     template<typename... ResultTypes, typename... ArgumentTypes>
-    std::tuple<ConstRef<ResultTypes>...> Emit(Instruction::Type type, u16 flags, ArgumentTypes&&... args) {
+    std::tuple<ConstRef<ResultTypes>...> Emit(Type type, u16 flags, ArgumentTypes&&... args) {
       static_assert(sizeof...(ResultTypes)   <= Instruction::max_ret_slots);
       static_assert(sizeof...(ArgumentTypes) <= Instruction::max_arg_slots);
 
@@ -88,7 +84,7 @@ class Emitter {
       }
     }
 
-    Instruction& AppendInstruction(Instruction::Type type, u16 flags, size_t arg_slot_count, size_t ret_slot_count) {
+    Instruction& AppendInstruction(Type type, u16 flags, size_t arg_slot_count, size_t ret_slot_count) {
       const auto instruction = (Instruction*)m_arena.Allocate(sizeof(Instruction));
       if(instruction == nullptr) [[unlikely]] {
         ATOM_PANIC("ran out of memory arena space");

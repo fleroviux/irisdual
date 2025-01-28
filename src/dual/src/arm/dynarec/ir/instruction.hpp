@@ -19,16 +19,14 @@ struct Instruction {
     STCPSR,
 
     // Flag Management
-    // @todo: CVT_NZCV2HFLAG operation might be wasteful, we will probably only need the carry usually.
-    CVT_HFLAG2NZCV,
-    CVT_HFLAG2Q,
-    CVT_NZCV2HFLAG,
+    // ...
 
     // Binary Ops
     ADD,
   };
 
-  enum class Flags : u16 {
+  enum Flag : u16 {
+    OutputHostFlags = 1 << 0
   };
 
   static constexpr size_t max_arg_slots = 2u;

@@ -62,6 +62,20 @@ void ARM64Backend::Execute(const ir::Function& function) {
           code.STR(value_reg, XReg_State, m_cpu_state.GetOffsetToGPR(gpr, CPU::Mode::Supervisor)); // TODO: cpu mode
           break;
         }
+        case ir::Instruction::Type::ADD: {
+          const oaknut::WReg lhs_reg = GetLocation(instruction->GetArg(0u).AsValue()).AsWReg(); // TODO: assumes that value is not a constant!
+          const oaknut::WReg rhs_reg = GetLocation(instruction->GetArg(1u).AsValue()).AsWReg(); // TODO: assumes that value is not a constant!
+          const oaknut::WReg result_reg = GetLocation(instruction->GetOut(0u)).AsWReg();
+
+          if(instruction->flags & ir::Instruction::Flag::OutputHostFlags) {
+            const oaknut::WReg host_flags_reg = GetLocation(instruction->GetOut(1u)).AsWReg();
+            code.ADDS(result_reg, lhs_reg, rhs_reg);
+            code.MRS(host_flags_reg.toX(), oaknut::SystemReg::NZCV);
+          } else {
+            code.ADD(result_reg, lhs_reg, rhs_reg);
+          }
+          break;
+        }
         default: {
           ATOM_PANIC("unhandled IR instruction type: {}", (int)instruction->type);
         }

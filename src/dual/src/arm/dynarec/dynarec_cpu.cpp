@@ -102,7 +102,10 @@ void DynarecCPU::TestBackend() {
   ir::Function function{};
   ir::Emitter emitter{function.basic_block, memory_arena};
   const ir::U32Value& value_r0 = emitter.LDGPR(GPR::R0);
-  emitter.STGPR(GPR::R1, value_r0);
+  const ir::U32Value& value_r1 = emitter.LDGPR(GPR::R1);
+  const ir::HostFlagsValue* value_host_flags;
+  const ir::U32Value& add_result = emitter.ADD(value_r0, value_r1, &value_host_flags);
+  emitter.STGPR(GPR::R2, add_result);
 
   const auto PrintCpuState = [&]() {
     fmt::print("CPU STATE:\n");
@@ -110,7 +113,8 @@ void DynarecCPU::TestBackend() {
       fmt::print("\tr{} \t= 0x{:08X}\n", reg, m_cpu_state.GetGPR((GPR)reg));
     }
   };
-  m_cpu_state.SetGPR(GPR::R0, 0xDEADC0DEu);
+  m_cpu_state.SetGPR(GPR::R0, 0x80000000);
+  m_cpu_state.SetGPR(GPR::R1, 0x80000000);
   PrintCpuState();
   m_backend->Execute(function);
   PrintCpuState();

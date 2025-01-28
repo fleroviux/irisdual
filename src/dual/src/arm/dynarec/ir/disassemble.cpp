@@ -12,9 +12,6 @@ static const char* get_instruction_mnemonic(Instruction::Type type) {
     case Instruction::Type::STGPR:  return "stgpr";
     case Instruction::Type::LDCPSR: return "ldcpsr";
     case Instruction::Type::STCPSR: return "stcpsr";
-    case Instruction::Type::CVT_HFLAG2NZCV: return "cvt.hflag.nzcv";
-    case Instruction::Type::CVT_HFLAG2Q:    return "cvt.hflag.q";
-    case Instruction::Type::CVT_NZCV2HFLAG: return "cvt.nzcv2.flag";
     case Instruction::Type::ADD: return "add";
     default: ATOM_PANIC("unhandled instruction type: {}", (int)type);
   }
@@ -44,6 +41,10 @@ std::string disassemble(const BasicBlock& basic_block) {
     }
 
     disassembled_code += get_instruction_mnemonic(instruction->type);
+    if(instruction->flags) {
+      disassembled_code += ".";
+      if(instruction->flags & Instruction::Flag::OutputHostFlags) disassembled_code += "s";
+    }
     disassembled_code += " ";
 
     for(size_t slot = 0; slot < arg_slot_count; slot++) {
