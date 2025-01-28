@@ -58,6 +58,10 @@ class Emitter {
       Emit(Type::STSPSR, 0u, cpu_mode, value);
     }
 
+    const U32Value& CVT_HFLAG_NZCV(const HostFlagsValue& hflag_value) {
+      return std::get<0>(Emit<U32Value>(Type::CVT_HFLAG_NZCV, 0u, hflag_value));
+    }
+
     const U32Value& ADD(const U32Value& lhs, const U32Value& rhs, const HostFlagsValue** hflags_out = nullptr) {
       if(hflags_out) {
         const auto [result_value, hflags_value] = Emit<U32Value, HostFlagsValue>(Type::ADD, Flag::OutputHostFlags, lhs, rhs);

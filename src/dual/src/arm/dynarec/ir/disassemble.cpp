@@ -14,6 +14,7 @@ static const char* get_instruction_mnemonic(Instruction::Type type) {
     case Instruction::Type::STCPSR: return "stcpsr";
     case Instruction::Type::LDSPSR: return "ldspsr";
     case Instruction::Type::STSPSR: return "stspsr";
+    case Instruction::Type::CVT_HFLAG_NZCV: return "cvt.hflag.nzcv";
     case Instruction::Type::ADD: return "add";
     default: ATOM_PANIC("unhandled instruction type: {}", (int)type);
   }

@@ -21,6 +21,7 @@ struct Instruction {
     STSPSR,
 
     // Flag Management
+    CVT_HFLAG_NZCV,
     // ...
 
     // Data processing

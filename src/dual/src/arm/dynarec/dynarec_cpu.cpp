@@ -105,15 +105,20 @@ void DynarecCPU::TestBackend() {
   const ir::U32Value& value_r0 = emitter.LDGPR(GPR::R0, Mode::Supervisor);
   const ir::U32Value& value_r1 = emitter.LDGPR(GPR::R1, Mode::Supervisor);
 
-  const ir::HostFlagsValue* value_host_flags;
-  const ir::U32Value& add_result = emitter.ADD(value_r0, value_r1, &value_host_flags);
+  const ir::HostFlagsValue* value_hflags;
+  const ir::U32Value& add_result = emitter.ADD(value_r0, value_r1, &value_hflags);
   emitter.STGPR(GPR::R2, Mode::Supervisor, add_result);
 
-  const ir::U32Value& value_cpsr = emitter.LDCPSR();
-  emitter.STCPSR(value_cpsr);
+  // TODO: merge with original CPSR value
+  //const ir::U32Value& value_cpsr = emitter.LDCPSR();
+  const ir::U32Value& value_nzcv = emitter.CVT_HFLAG_NZCV(*value_hflags);
+  emitter.STCPSR(value_nzcv);
 
-  const ir::U32Value& value_spsr = emitter.LDSPSR(Mode::Supervisor);
-  emitter.STSPSR(Mode::Supervisor, value_spsr);
+//  const ir::U32Value& value_cpsr = emitter.LDCPSR();
+//  emitter.STCPSR(value_cpsr);
+//
+//  const ir::U32Value& value_spsr = emitter.LDSPSR(Mode::Supervisor);
+//  emitter.STSPSR(Mode::Supervisor, value_spsr);
 
   const auto PrintCpuState = [&]() {
     fmt::print("CPU STATE:\n");
