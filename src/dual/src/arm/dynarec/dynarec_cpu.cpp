@@ -109,17 +109,11 @@ void DynarecCPU::TestBackend() {
   const ir::U32Value& add_result = emitter.ADD(value_r0, value_r1, &value_hflags);
   emitter.STGPR(GPR::R2, Mode::Supervisor, add_result);
 
-  // TODO: merge with original CPSR value
-  //const ir::U32Value& value_cpsr = emitter.LDCPSR();
+  // TODO: create a bitfield insert instruction in the IR?
   const ir::U32Value& value_nzcv = emitter.CVT_HFLAG_NZCV(*value_hflags);
-  emitter.LDCONST(0xF0000000u);
-  emitter.STCPSR(value_nzcv);
-
-//  const ir::U32Value& value_cpsr = emitter.LDCPSR();
-//  emitter.STCPSR(value_cpsr);
-//
-//  const ir::U32Value& value_spsr = emitter.LDSPSR(Mode::Supervisor);
-//  emitter.STSPSR(Mode::Supervisor, value_spsr);
+  const ir::U32Value& value_cpsr_old = emitter.LDCPSR();
+  const ir::U32Value& value_cpsr_new = emitter.ORR(value_nzcv, emitter.BIC(value_cpsr_old, emitter.LDCONST(0xF0000000u)));
+  emitter.STCPSR(value_cpsr_new);
 
   const auto PrintCpuState = [&]() {
     fmt::print("CPU STATE:\n");

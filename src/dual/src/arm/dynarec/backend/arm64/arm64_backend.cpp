@@ -97,17 +97,51 @@ void ARM64Backend::Execute(const ir::Function& function) {
           code.MOV(nzcv_reg, hflags_reg); // TODO(fleroviux): implement move elimination
           break;
         }
-        case ir::Instruction::Type::ADD: {
+        case ir::Instruction::Type::BIC: {
           const oaknut::WReg lhs_reg = GetLocation(instruction->GetArg(0u).AsValue()).AsWReg();
           const oaknut::WReg rhs_reg = GetLocation(instruction->GetArg(1u).AsValue()).AsWReg();
           const oaknut::WReg result_reg = GetLocation(instruction->GetOut(0u)).AsWReg();
 
           if(instruction->flags & ir::Instruction::Flag::OutputHostFlags) {
+            // TODO(fleroviux): implement support for flag only output
+            const oaknut::WReg hflags_reg = GetLocation(instruction->GetOut(1u)).AsWReg();
+            code.BICS(result_reg, lhs_reg, rhs_reg);
+            code.MRS(hflags_reg.toX(), oaknut::SystemReg::NZCV);
+          } else {
+            code.BIC(result_reg, lhs_reg, rhs_reg);
+          }
+          break;
+        }
+        case ir::Instruction::Type::ADD: {
+          // TODO(fleroviux): this is very similar to BIC(S), can we deduplicate code reliably?
+          const oaknut::WReg lhs_reg = GetLocation(instruction->GetArg(0u).AsValue()).AsWReg();
+          const oaknut::WReg rhs_reg = GetLocation(instruction->GetArg(1u).AsValue()).AsWReg();
+          const oaknut::WReg result_reg = GetLocation(instruction->GetOut(0u)).AsWReg();
+
+          if(instruction->flags & ir::Instruction::Flag::OutputHostFlags) {
+            // TODO(fleroviux): implement support for flag only output
             const oaknut::WReg hflags_reg = GetLocation(instruction->GetOut(1u)).AsWReg();
             code.ADDS(result_reg, lhs_reg, rhs_reg);
             code.MRS(hflags_reg.toX(), oaknut::SystemReg::NZCV);
           } else {
             code.ADD(result_reg, lhs_reg, rhs_reg);
+          }
+          break;
+        }
+        case ir::Instruction::Type::ORR: {
+          // TODO(fleroviux): this is very similar to BIC(S), can we deduplicate code reliably?
+          const oaknut::WReg lhs_reg = GetLocation(instruction->GetArg(0u).AsValue()).AsWReg();
+          const oaknut::WReg rhs_reg = GetLocation(instruction->GetArg(1u).AsValue()).AsWReg();
+          const oaknut::WReg result_reg = GetLocation(instruction->GetOut(0u)).AsWReg();
+
+          if(instruction->flags & ir::Instruction::Flag::OutputHostFlags) {
+            // TODO(fleroviux): implement support for flag only output
+            const oaknut::WReg hflags_reg = GetLocation(instruction->GetOut(1u)).AsWReg();
+            code.ORR(result_reg, lhs_reg, rhs_reg);
+            code.TST(result_reg, result_reg);
+            code.MRS(hflags_reg.toX(), oaknut::SystemReg::NZCV);
+          } else {
+            code.ORR(result_reg, lhs_reg, rhs_reg);
           }
           break;
         }

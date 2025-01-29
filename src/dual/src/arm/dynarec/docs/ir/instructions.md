@@ -50,9 +50,26 @@ nzcv_value<u32> := cvt.hflags.nzcv hflag_value<hflag>
 
 ## Data Processing
 
-### ADD(S)
+### BIC(.S)
+
+```
+result_value<u32>                     := bic   lhs_value<u32>, rhs_value<u32>
+result_value<u32>, hflag_value<hflag> := bic.s lhs_value<u32>, rhs_value<u32>
+```
+flags: `NZ--`
+
+### ADD(.S)
 
 ```
 result_value<u32>                     := add   lhs_value<u32>, rhs_value<u32>
 result_value<u32>, hflag_value<hflag> := add.s lhs_value<u32>, rhs_value<u32>
 ```
+flags: `NZCV`
+
+### ORR(.S)
+
+```
+result_value<u32>                     := orr   lhs_value<u32>, rhs_value<u32>
+result_value<u32>, hflag_value<hflag> := orr.s lhs_value<u32>, rhs_value<u32>
+```
+flags: `NZ--`

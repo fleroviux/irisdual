@@ -54,18 +54,30 @@ class Emitter {
       return std::get<0>(Emit<U32Value>(Type::CVT_HFLAG_NZCV, 0u, hflag_value));
     }
 
+    const U32Value& BIC(const U32Value& lhs, const U32Value& rhs, const HostFlagsValue** hflags_out = nullptr) {
+      return EmitBinaryALU(Type::BIC, lhs, rhs, hflags_out);
+    }
+
     const U32Value& ADD(const U32Value& lhs, const U32Value& rhs, const HostFlagsValue** hflags_out = nullptr) {
-      if(hflags_out) {
-        const auto [result_value, hflags_value] = Emit<U32Value, HostFlagsValue>(Type::ADD, Flag::OutputHostFlags, lhs, rhs);
-        *hflags_out = &hflags_value;
-        return result_value;
-      }
-      return std::get<0>(Emit<U32Value>(Type::ADD, 0u, lhs, rhs));
+      return EmitBinaryALU(Type::ADD, lhs, rhs, hflags_out);
+    }
+
+    const U32Value& ORR(const U32Value& lhs, const U32Value& rhs, const HostFlagsValue** hflags_out = nullptr) {
+      return EmitBinaryALU(Type::ORR, lhs, rhs, hflags_out);
     }
 
   private:
     using Type = Instruction::Type;
     using Flag = Instruction::Flag;
+
+    const U32Value& EmitBinaryALU(Type type, const U32Value& lhs, const U32Value& rhs, const HostFlagsValue** hflags_out) {
+      if(hflags_out) {
+        const auto [result_value, hflags_value] = Emit<U32Value, HostFlagsValue>(type, Flag::OutputHostFlags, lhs, rhs);
+        *hflags_out = &hflags_value;
+        return result_value;
+      }
+      return std::get<0>(Emit<U32Value>(type, 0u, lhs, rhs));
+    }
 
     template<typename T>
     using ConstRef = std::add_lvalue_reference_t<std::add_const_t<T>>;

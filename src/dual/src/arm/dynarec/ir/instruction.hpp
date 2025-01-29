@@ -29,7 +29,7 @@ struct Instruction {
 
     // Data processing
 //    AND,
-//    BIC,
+    BIC,
 //    EOR,
 //    SUB,
 //    RSB,
@@ -37,7 +37,7 @@ struct Instruction {
 //    ADC,
 //    SBC,
 //    RSC,
-//    ORR,
+    ORR,
 //    MOV,
 //    MVN,
   };
