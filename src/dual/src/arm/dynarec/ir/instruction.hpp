@@ -27,26 +27,31 @@ struct Instruction {
     CVT_HFLAG_NZCV,
     // ...
 
+    // Control Flow
+    BR,
+    BR_IF,
+    EXIT,
+
     // Data processing
-//    AND,
+    AND,
     BIC,
-//    EOR,
-//    SUB,
-//    RSB,
+    EOR,
+    SUB,
+    RSB,
     ADD,
-//    ADC,
-//    SBC,
-//    RSC,
+    ADC,
+    SBC,
+    RSC,
     ORR,
-//    MOV,
-//    MVN,
+    MOV,
+    MVN,
   };
 
   enum Flag : u16 {
     OutputHostFlags = 1 << 0
   };
 
-  static constexpr size_t max_arg_slots = 3u;
+  static constexpr size_t max_arg_slots = 4u;
   static constexpr size_t max_out_slots = 2u;
 
   Instruction(Type type, u16 flags, u8 arg_slot_count, u8 out_slot_count)

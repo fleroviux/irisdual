@@ -1,12 +1,14 @@
 
 #pragma once
 
+#include <vector>
+
 #include "basic_block.hpp"
 
 namespace dual::arm::jit::ir {
 
 struct Function {
-  BasicBlock basic_block{}; // just deal with a single basic block for now
+  std::vector<BasicBlock> basic_blocks{};
 };
 
 } // namespace dual::arm::jit::ir

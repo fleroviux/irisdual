@@ -16,9 +16,12 @@ static const char* get_instruction_mnemonic(Instruction::Type type) {
     case Instruction::Type::LDSPSR:  return "ldspsr";
     case Instruction::Type::STSPSR:  return "stspsr";
     case Instruction::Type::CVT_HFLAG_NZCV: return "cvt.hflag.nzcv";
-    case Instruction::Type::BIC: return "bic";
-    case Instruction::Type::ADD: return "add";
-    case Instruction::Type::ORR: return "orr";
+    case Instruction::Type::BR:    return "br";
+    case Instruction::Type::BR_IF: return "br_if";
+    case Instruction::Type::EXIT:  return "exit";
+    case Instruction::Type::BIC:   return "bic";
+    case Instruction::Type::ADD:   return "add";
+    case Instruction::Type::ORR:   return "orr";
     default: ATOM_PANIC("unhandled instruction type: {}", (int)type);
   }
 }
@@ -36,11 +39,31 @@ static const char* get_cpu_mode_label(Mode cpu_mode) {
   }
 }
 
+static const char* get_condition_label(Condition condition) {
+  switch(condition) {
+    case Condition::EQ: return "eq";
+    case Condition::NE: return "ne";
+    case Condition::CS: return "cs";
+    case Condition::CC: return "cc";
+    case Condition::MI: return "mi";
+    case Condition::PL: return "pl";
+    case Condition::VS: return "vs";
+    case Condition::VC: return "vc";
+    case Condition::HI: return "hi";
+    case Condition::LS: return "ls";
+    case Condition::GE: return "ge";
+    case Condition::LT: return "lt";
+    case Condition::GT: return "gt";
+    case Condition::LE: return "le";
+    default: ATOM_PANIC("unhandled condition: {}", (int)condition);
+  }
+}
+
 std::string disassemble(const BasicBlock& basic_block) {
   std::string disassembled_code{};
   disassembled_code.reserve(4096); // 4 KiB should be enough to fit near all (if not all) cases
 
-  const ir::Instruction* instruction = basic_block.head;
+  const Instruction* instruction = basic_block.head;
 
   while(instruction != nullptr) {
     const size_t out_slot_count = instruction->out_slot_count;
@@ -67,28 +90,32 @@ std::string disassemble(const BasicBlock& basic_block) {
     disassembled_code += " ";
 
     for(size_t slot = 0; slot < arg_slot_count; slot++) {
-      const ir::Input& arg = instruction->arg_slots[slot];
+      const Input& arg = instruction->arg_slots[slot];
 
       switch(arg.GetType()) {
-        case ir::Input::Type::Null: {
+        case Input::Type::Null: {
           disassembled_code += "(null)";
           break;
         }
-        case ir::Input::Type::Value: {
+        case Input::Type::Value: {
           disassembled_code += fmt::format("v{}", arg.AsValue());
           break;
         }
-        case ir::Input::Type::GPR: {
+        case Input::Type::GPR: {
           disassembled_code += fmt::format("r{}", (int)arg.AsGPR());
           break;
         }
-        case ir::Input::Type::Mode: {
+        case Input::Type::Mode: {
           disassembled_code += "%";
           disassembled_code += get_cpu_mode_label(arg.AsMode());
           break;
         }
-        case ir::Input::Type::ConstU32: {
+        case Input::Type::ConstU32: {
           disassembled_code += fmt::format("0x{:08X}_u32", arg.AsConstU32());
+          break;
+        }
+        case Input::Type::Condition: {
+          disassembled_code += get_condition_label(arg.AsCondition());
           break;
         }
         default: {

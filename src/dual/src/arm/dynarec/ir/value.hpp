@@ -11,7 +11,7 @@ namespace dual::arm::jit::ir {
 struct Instruction;
 
 struct Ref {
-  const Instruction* instruction{};
+  Instruction* instruction{};
   int slot;
 };
 

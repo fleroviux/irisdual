@@ -100,7 +100,8 @@ void DynarecCPU::TestBackend() {
   atom::Arena memory_arena{(sizeof(ir::Instruction) + sizeof(ir::Value)) * 4096};
 
   ir::Function function{};
-  ir::Emitter emitter{function.basic_block, memory_arena};
+
+  /*ir::Emitter emitter{function.basic_blocks.emplace_back(), memory_arena};
 
   const ir::U32Value& value_r0 = emitter.LDGPR(GPR::R0, Mode::Supervisor);
   const ir::U32Value& value_r1 = emitter.LDGPR(GPR::R1, Mode::Supervisor);
@@ -115,6 +116,25 @@ void DynarecCPU::TestBackend() {
   const ir::U32Value& value_cpsr_new = emitter.ORR(value_nzcv, emitter.BIC(value_cpsr_old, emitter.LDCONST(0xF0000000u)));
   emitter.STCPSR(value_cpsr_new);
 
+  emitter.EXIT();*/
+
+  {
+    ir::Emitter emitter{function.basic_blocks.emplace_back(), memory_arena};
+
+    const ir::U32Value& value_r0 = emitter.LDGPR(GPR::R0, Mode::Supervisor);
+
+    const ir::HostFlagsValue* hflags;
+    const ir::U32Value& result = emitter.ADD(value_r0, emitter.LDCONST(0xFFFFFFFFu), &hflags);
+    emitter.STGPR(GPR::R0, Mode::Supervisor, result);
+    //emitter.BR_IF(ir::Condition::NE, *hflags, 0u, 1u);
+    emitter.BR_IF(ir::Condition::EQ, *hflags, 1u, 0u);
+  }
+
+  {
+    ir::Emitter emitter{function.basic_blocks.emplace_back(), memory_arena};
+    emitter.EXIT();
+  }
+
   const auto PrintCpuState = [&]() {
     fmt::print("CPU STATE:\n");
     for(int reg = 0; reg < 16; reg++) {
@@ -123,8 +143,9 @@ void DynarecCPU::TestBackend() {
     fmt::print("\tCPSR \t= 0x{:08X}\n", m_cpu_state.GetCPSR().word);
     fmt::print("\tSPSR \t= 0x{:08X}\n", m_cpu_state.GetSPSR((Mode)m_cpu_state.GetCPSR().mode).word);
   };
-  m_cpu_state.SetGPR(GPR::R0, 0x80000000);
-  m_cpu_state.SetGPR(GPR::R1, 0x80000000);
+//  m_cpu_state.SetGPR(GPR::R0, 0x80000000);
+//  m_cpu_state.SetGPR(GPR::R1, 0x80000000);
+  m_cpu_state.SetGPR(GPR::R0, 256);
   PrintCpuState();
   m_backend->Execute(function);
   PrintCpuState();
