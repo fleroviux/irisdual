@@ -38,6 +38,7 @@ void ARM64Backend::Execute(const ir::Function& function) {
   code.MOVP2R(XReg_State, &m_cpu_state);
 
   fmt::print("===========================================\n");
+  fmt::print("IR function:\n{}\n", ir::disassemble(function));
 
   for(size_t bb_index = 0u; bb_index < function.basic_blocks.size(); bb_index++) {
     const ir::BasicBlock& basic_block = function.basic_blocks[bb_index];
@@ -211,8 +212,6 @@ void ARM64Backend::Execute(const ir::Function& function) {
 
       instruction = instruction->next;
     }
-
-    fmt::print("bb_{}:\n{}\n", bb_index, ir::disassemble(basic_block));
 
     if(!got_terminal_instruction) {
       ATOM_PANIC("Basic block did not end in a terminal instruction!");
