@@ -9,7 +9,7 @@
 namespace dual::arm::jit::ir {
 
 struct Function : atom::NonCopyable {
-  std::vector<BasicBlock> basic_blocks{};
+  std::vector<BasicBlock*> basic_blocks{};
 };
 
 } // namespace dual::arm::jit::ir

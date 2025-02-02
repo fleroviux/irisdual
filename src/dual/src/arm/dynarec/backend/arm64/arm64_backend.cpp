@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "arm/dynarec/ir/disassemble.hpp"
+#include "arm/dynarec/ir/instruction.hpp"
 #include "arm64_backend.hpp"
 #include "arm64_value_location.hpp"
 
@@ -40,8 +41,10 @@ void ARM64Backend::Execute(const ir::Function& function) {
   fmt::print("===========================================\n");
   fmt::print("IR function:\n{}\n", ir::disassemble(function));
 
+  // TODO(fleroviux): use a topological sort to linearize the instructions? This would give us more flexibility with the order we create basic blocks in.
+
   for(size_t bb_index = 0u; bb_index < function.basic_blocks.size(); bb_index++) {
-    const ir::BasicBlock& basic_block = function.basic_blocks[bb_index];
+    const ir::BasicBlock& basic_block = *function.basic_blocks[bb_index];
 
     // here comes the poor girl's register allocator!
     std::vector<ARM64ValueLocation> location_map{};
@@ -114,8 +117,8 @@ void ARM64Backend::Execute(const ir::Function& function) {
           break;
         }
         case ir::Instruction::Type::BR: {
-          const u32 target_bb = instruction->GetArg(0u).AsConstU32();
-          if(target_bb != next_bb_index) {
+          const ir::BasicBlock::ID target_bb = instruction->GetArg(0u).AsBasicBlock();
+          if(target_bb != next_bb_index) { // This only works if IDs and indices of basic blocks match up. They always should though...
             code.B(basic_block_labels[target_bb]);
           }
 
@@ -126,12 +129,12 @@ void ARM64Backend::Execute(const ir::Function& function) {
           const oaknut::WReg hflags_reg = GetLocation(instruction->GetArg(1u).AsValue()).AsWReg();
 
           ir::Condition condition = instruction->GetArg(0u).AsCondition();
-          u32 bb_true  = instruction->GetArg(2u).AsConstU32();
-          u32 bb_false = instruction->GetArg(3u).AsConstU32();
+          ir::BasicBlock::ID bb_true  = instruction->GetArg(2u).AsBasicBlock();
+          ir::BasicBlock::ID bb_false = instruction->GetArg(3u).AsBasicBlock();
 
           // Negate the branch condition and branch targets if the 'true' branch target is the next basic block in order.
           // This saves us the unconditional branch to the 'false' branch target.
-          if(bb_true == next_bb_index) {
+          if(bb_true == next_bb_index) { // This only works if IDs and indices of basic blocks match up. They always should though...
             std::swap(bb_true, bb_false);
             condition = NegateCondition(condition);
           }

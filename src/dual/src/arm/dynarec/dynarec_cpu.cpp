@@ -97,7 +97,7 @@ void DynarecCPU::Run(int cycles) {
 void DynarecCPU::TestBackend() {
   using namespace jit;
 
-  atom::Arena memory_arena{(sizeof(ir::Instruction) + sizeof(ir::Value)) * 4096};
+  atom::Arena memory_arena{16384u};
 
   ir::Function function{};
 
@@ -118,20 +118,25 @@ void DynarecCPU::TestBackend() {
 
   emitter.EXIT();*/
 
+  ir::BasicBlock* bb_loop = new(memory_arena.Allocate(sizeof(ir::BasicBlock))) ir::BasicBlock{0u}; // TODO: check failure
+  function.basic_blocks.push_back(bb_loop);
+
+  ir::BasicBlock* bb_exit = new(memory_arena.Allocate(sizeof(ir::BasicBlock))) ir::BasicBlock{1u}; // TODO: check failure
+  function.basic_blocks.push_back(bb_exit);
+
   {
-    ir::Emitter emitter{function.basic_blocks.emplace_back(), memory_arena};
+    ir::Emitter emitter{*bb_loop, memory_arena};
 
     const ir::U32Value& value_r0 = emitter.LDGPR(GPR::R0, Mode::Supervisor);
 
     const ir::HostFlagsValue* hflags;
     const ir::U32Value& result = emitter.ADD(value_r0, emitter.LDCONST(0xFFFFFFFFu), &hflags);
     emitter.STGPR(GPR::R0, Mode::Supervisor, result);
-    //emitter.BR_IF(ir::Condition::NE, *hflags, 0u, 1u);
-    emitter.BR_IF(ir::Condition::EQ, *hflags, 1u, 0u);
+    emitter.BR_IF(ir::Condition::EQ, *hflags, *bb_exit, *bb_loop);
   }
 
   {
-    ir::Emitter emitter{function.basic_blocks.emplace_back(), memory_arena};
+    ir::Emitter emitter{*bb_exit, memory_arena};
     emitter.EXIT();
   }
 

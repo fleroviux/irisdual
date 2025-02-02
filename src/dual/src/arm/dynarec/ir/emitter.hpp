@@ -54,13 +54,11 @@ class Emitter {
       return std::get<0>(Emit<U32Value>(Type::CVT_HFLAG_NZCV, 0u, hflag_value));
     }
 
-    void BR(u32 bb) {
-      // TODO(fleroviux): use a dedicated input type for basic block references!
-      Emit(Type::BR, 0u, bb);
+    void BR(const BasicBlock& basic_block) {
+      Emit(Type::BR, 0u, basic_block);
     }
 
-    void BR_IF(Condition condition, const HostFlagsValue& hflag_value, u32 bb_true, u32 bb_false) {
-      // TODO(fleroviux): use a dedicated input type for basic block references!
+    void BR_IF(Condition condition, const HostFlagsValue& hflag_value, const BasicBlock& bb_true, const BasicBlock& bb_false) {
       Emit(Type::BR_IF, 0u, condition, hflag_value, bb_true, bb_false);
     }
 
@@ -160,6 +158,10 @@ class Emitter {
 
     static void SetArg(Instruction& instruction, int slot, Condition condition) {
       instruction.arg_slots[slot] = Input{condition};
+    }
+
+    static void SetArg(Instruction& instruction, int slot, const BasicBlock& basic_block) {
+      instruction.arg_slots[slot] = Input{basic_block};
     }
 
     template<typename OutType, typename... RemainingOutTypes>

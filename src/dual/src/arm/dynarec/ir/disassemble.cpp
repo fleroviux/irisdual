@@ -3,6 +3,7 @@
 #include <fmt/format.h>
 
 #include "disassemble.hpp"
+#include "instruction.hpp"
 
 namespace dual::arm::jit::ir {
 
@@ -13,14 +14,14 @@ static const char* get_data_type_label(Value::DataType data_type);
 
 std::string disassemble(const Function& function) {
   std::string disassembled_code{};
-  disassembled_code.reserve(4096); // 4 KiB should be enough to fit near all (if not all) cases
+  disassembled_code.reserve(4096u); // 4 KiB should be enough to fit near all (if not all) cases
 
-  disassembled_code += fmt::format("fun_PLACEHOLDER() {{\n");
+  disassembled_code += fmt::format("fun() {{\n");
 
   size_t bb_index = 0u;
-  for(const BasicBlock& basic_block : function.basic_blocks) {
+  for(const BasicBlock* basic_block : function.basic_blocks) {
     disassembled_code += fmt::format("\tbb_{}:\n", bb_index++);
-    disassembled_code += disassemble(basic_block, "\t\t");
+    disassembled_code += disassemble(*basic_block, "\t\t");
   }
 
   disassembled_code += "}";
@@ -104,6 +105,10 @@ std::string disassemble(const Instruction& instruction) {
       }
       case Input::Type::Condition: {
         disassembled_code += get_condition_label(arg.AsCondition());
+        break;
+      }
+      case Input::Type::BasicBlock: {
+        disassembled_code += fmt::format("@bb_{}", arg.AsBasicBlock());
         break;
       }
       default: {

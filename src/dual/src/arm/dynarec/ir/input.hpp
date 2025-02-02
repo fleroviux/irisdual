@@ -5,6 +5,7 @@
 #include <atom/integer.hpp>
 #include <dual/arm/cpu.hpp>
 
+#include "basic_block.hpp"
 #include "value.hpp"
 
 namespace dual::arm::jit::ir {
@@ -29,8 +30,6 @@ enum class Condition {
   LE = 13
 };
 
-struct BasicBlock;
-
 class Input {
   public:
     enum class Type {
@@ -39,7 +38,8 @@ class Input {
       GPR,
       Mode,
       ConstU32,
-      Condition
+      Condition,
+      BasicBlock
     };
 
     Input() : m_type{Type::Null} {}
@@ -48,6 +48,7 @@ class Input {
     explicit Input(Mode mode) : m_type{Type::Mode}, m_mode{mode} {}
     explicit Input(u32 const_u32) : m_type{Type::ConstU32}, m_const_u32{const_u32} {}
     explicit Input(Condition condition) : m_type{Type::Condition}, m_condition{condition} {}
+    explicit Input(const BasicBlock& basic_block) : m_type{Type::BasicBlock}, m_basic_block{basic_block.id} {}
 
     [[nodiscard]] Type GetType() const { return m_type; }
     [[nodiscard]] bool Is(Type type) const { return m_type == type; }
@@ -77,6 +78,11 @@ class Input {
       return m_condition;
     }
 
+    [[nodiscard]] BasicBlock::ID AsBasicBlock() const {
+      DebugCheckType(Type::BasicBlock);
+      return m_basic_block;
+    }
+
   private:
     void DebugCheckType(Type type) const {
 #ifndef NDEBUG
@@ -93,6 +99,7 @@ class Input {
       Mode m_mode;
       u32 m_const_u32;
       Condition m_condition;
+      BasicBlock::ID m_basic_block;
     };
 };
 
