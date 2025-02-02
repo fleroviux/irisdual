@@ -13,6 +13,8 @@ class ARM64Backend : public Backend {
     void Execute(const ir::Function& function) override;
 
   private:
+    void LowerToMIR(const ir::BasicBlock& basic_block);
+
     State& m_cpu_state;
 };
 

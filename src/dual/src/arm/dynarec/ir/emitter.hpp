@@ -9,8 +9,6 @@
 #include <utility>
 
 #include "basic_block.hpp"
-#include "value.hpp"
-#include "input.hpp"
 #include "instruction.hpp"
 
 namespace dual::arm::jit::ir {

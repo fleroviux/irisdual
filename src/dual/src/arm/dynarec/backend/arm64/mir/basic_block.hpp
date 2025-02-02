@@ -3,13 +3,13 @@
 
 #include <atom/integer.hpp>
 #include <atom/non_copyable.hpp>
-#include <algorithm>
 #include <vector>
 
-namespace dual::arm::jit::ir {
+#include "vreg.hpp"
+
+namespace dual::arm::jit::a64mir {
 
 struct Instruction;
-struct Value;
 
 struct BasicBlock : atom::NonCopyable {
   using ID = u16;
@@ -19,7 +19,7 @@ struct BasicBlock : atom::NonCopyable {
   ID id;
   Instruction* head{};
   Instruction* tail{};
-  std::vector<Value*> values{};
+  std::vector<VReg*> vregs{};
 };
 
-} // namespace dual::arm::jit::ir
+} // namespace dual::arm::jit::a64mir

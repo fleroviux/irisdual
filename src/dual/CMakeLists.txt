@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(SOURCES
   src/arm/dynarec/backend/arm64/arm64_backend.cpp
+  src/arm/dynarec/backend/arm64/lowering_test.cpp
   src/arm/dynarec/ir/disassemble.cpp
   src/arm/dynarec/dynarec_cpu.cpp
   src/arm/dynarec/state.cpp
@@ -54,6 +55,11 @@ set(SOURCES
 )
 
 set(HEADERS
+  src/arm/dynarec/backend/arm64/mir/basic_block.hpp
+  src/arm/dynarec/backend/arm64/mir/emitter.hpp
+  src/arm/dynarec/backend/arm64/mir/instruction.hpp
+  src/arm/dynarec/backend/arm64/mir/operand.hpp
+  src/arm/dynarec/backend/arm64/mir/vreg.hpp
   src/arm/dynarec/backend/arm64/arm64_backend.hpp
   src/arm/dynarec/backend/arm64/arm64_value_location.hpp
   src/arm/dynarec/backend/backend.hpp

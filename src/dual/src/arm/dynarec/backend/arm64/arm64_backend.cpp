@@ -46,6 +46,9 @@ void ARM64Backend::Execute(const ir::Function& function) {
   for(size_t bb_index = 0u; bb_index < function.basic_blocks.size(); bb_index++) {
     const ir::BasicBlock& basic_block = *function.basic_blocks[bb_index];
 
+    // Lowering test
+    LowerToMIR(basic_block);
+
     // here comes the poor girl's register allocator!
     std::vector<ARM64ValueLocation> location_map{};
     location_map.resize(basic_block.values.size());
