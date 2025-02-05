@@ -19,9 +19,10 @@ DynarecCPU::DynarecCPU(
 }
 
 void DynarecCPU::Reset() {
+  TestBackend();
+
   m_fallback_cpu.Reset();
   m_cpu_state.Reset();
-  TestBackend();
 }
 
 u32  DynarecCPU::GetExceptionBase() const {
@@ -59,39 +60,90 @@ void DynarecCPU::SetIRQFlag(bool value) {
 }
 
 u32 DynarecCPU::GetGPR(GPR reg) const {
-  return m_fallback_cpu.GetGPR(reg);
+  return m_cpu_state.GetGPR(reg);
 }
 
 u32 DynarecCPU::GetGPR(GPR reg, Mode mode) const {
-  return m_fallback_cpu.GetGPR(reg, mode);
+  return m_cpu_state.GetGPR(reg, mode);
 }
 
 CPU::PSR DynarecCPU::GetCPSR() const {
-  return m_fallback_cpu.GetCPSR();
+  return m_cpu_state.GetCPSR();
 }
 
 CPU::PSR DynarecCPU::GetSPSR(Mode mode) const {
-  return m_fallback_cpu.GetSPSR(mode);
+  return m_cpu_state.GetSPSR(mode);
 }
 
 void DynarecCPU::SetGPR(GPR reg, u32 value) {
-  m_fallback_cpu.SetGPR(reg, value);
+  m_cpu_state.SetGPR(reg, value);
 }
 
 void DynarecCPU::SetGPR(GPR reg, Mode mode, u32 value) {
-  m_fallback_cpu.SetGPR(reg, mode, value);
+  m_cpu_state.SetGPR(reg, mode, value);
 }
 
 void DynarecCPU::SetCPSR(PSR value) {
-  m_fallback_cpu.SetCPSR(value);
+  m_cpu_state.SetCPSR(value);
 }
 
 void DynarecCPU::SetSPSR(Mode mode, PSR value) {
-  m_fallback_cpu.SetSPSR(mode, value);
+  m_cpu_state.SetSPSR(mode, value);
 }
 
 void DynarecCPU::Run(int cycles) {
-  m_fallback_cpu.Run(cycles);
+  const auto CopyB2A = [this]<class A, class B>(A& a, B& b) {
+    a.SetCPSR(b.GetCPSR());
+    a.SetSPSR(Mode::FIQ, b.GetSPSR(Mode::FIQ));
+    a.SetSPSR(Mode::IRQ, b.GetSPSR(Mode::IRQ));
+    a.SetSPSR(Mode::Supervisor, b.GetSPSR(Mode::Supervisor));
+    a.SetSPSR(Mode::Abort, b.GetSPSR(Mode::Abort));
+    a.SetSPSR(Mode::Undefined, b.GetSPSR(Mode::Undefined));
+
+    a.SetGPR( GPR::R0, b.GetGPR( GPR::R0));
+    a.SetGPR( GPR::R1, b.GetGPR( GPR::R1));
+    a.SetGPR( GPR::R2, b.GetGPR( GPR::R2));
+    a.SetGPR( GPR::R3, b.GetGPR( GPR::R3));
+    a.SetGPR( GPR::R4, b.GetGPR( GPR::R4));
+    a.SetGPR( GPR::R5, b.GetGPR( GPR::R5));
+    a.SetGPR( GPR::R6, b.GetGPR( GPR::R6));
+    a.SetGPR( GPR::R7, b.GetGPR( GPR::R7));
+    a.SetGPR( GPR::R8, Mode::User, b.GetGPR( GPR::R8, Mode::User));
+    a.SetGPR( GPR::R9, Mode::User, b.GetGPR( GPR::R9, Mode::User));
+    a.SetGPR(GPR::R10, Mode::User, b.GetGPR(GPR::R10, Mode::User));
+    a.SetGPR(GPR::R11, Mode::User, b.GetGPR(GPR::R11, Mode::User));
+    a.SetGPR(GPR::R12, Mode::User, b.GetGPR(GPR::R12, Mode::User));
+    a.SetGPR(GPR::R13, Mode::User, b.GetGPR(GPR::R13, Mode::User));
+    a.SetGPR(GPR::R14, Mode::User, b.GetGPR(GPR::R14, Mode::User));
+    a.SetGPR( GPR::R8, Mode::FIQ, b.GetGPR( GPR::R8, Mode::FIQ));
+    a.SetGPR( GPR::R9, Mode::FIQ, b.GetGPR( GPR::R9, Mode::FIQ));
+    a.SetGPR(GPR::R10, Mode::FIQ, b.GetGPR(GPR::R10, Mode::FIQ));
+    a.SetGPR(GPR::R11, Mode::FIQ, b.GetGPR(GPR::R11, Mode::FIQ));
+    a.SetGPR(GPR::R12, Mode::FIQ, b.GetGPR(GPR::R12, Mode::FIQ));
+    a.SetGPR(GPR::R13, Mode::FIQ, b.GetGPR(GPR::R13, Mode::FIQ));
+    a.SetGPR(GPR::R14, Mode::FIQ, b.GetGPR(GPR::R14, Mode::FIQ));
+    a.SetGPR(GPR::R13, Mode::IRQ, b.GetGPR(GPR::R13, Mode::IRQ));
+    a.SetGPR(GPR::R14, Mode::IRQ, b.GetGPR(GPR::R14, Mode::IRQ));
+    a.SetGPR(GPR::R13, Mode::Supervisor, b.GetGPR(GPR::R13, Mode::Supervisor));
+    a.SetGPR(GPR::R14, Mode::Supervisor, b.GetGPR(GPR::R14, Mode::Supervisor));
+    a.SetGPR(GPR::R13, Mode::Abort, b.GetGPR(GPR::R13, Mode::Abort));
+    a.SetGPR(GPR::R14, Mode::Abort, b.GetGPR(GPR::R14, Mode::Abort));
+    a.SetGPR(GPR::R13, Mode::Undefined, b.GetGPR(GPR::R13, Mode::Undefined));
+    a.SetGPR(GPR::R14, Mode::Undefined, b.GetGPR(GPR::R14, Mode::Undefined));
+
+    u32 pc = b.GetGPR(GPR::R15);
+    if(std::is_same_v<A, InterpreterCPU>) {
+      // Well, this is slightly painful. Fix this properly.
+      pc -= b.GetCPSR().thumb ? 4 : 8;
+    }
+    a.SetGPR(GPR::R15, pc);
+  };
+
+  for(int i = 0; i < cycles; i++) {
+    CopyB2A(m_fallback_cpu, m_cpu_state);
+    m_fallback_cpu.Run(1);
+    CopyB2A(m_cpu_state, m_fallback_cpu);
+  }
 }
 
 void DynarecCPU::TestBackend() {
@@ -148,8 +200,7 @@ void DynarecCPU::TestBackend() {
     fmt::print("\tCPSR \t= 0x{:08X}\n", m_cpu_state.GetCPSR().word);
     fmt::print("\tSPSR \t= 0x{:08X}\n", m_cpu_state.GetSPSR((Mode)m_cpu_state.GetCPSR().mode).word);
   };
-//  m_cpu_state.SetGPR(GPR::R0, 0x80000000);
-//  m_cpu_state.SetGPR(GPR::R1, 0x80000000);
+  m_cpu_state.Reset();
   m_cpu_state.SetGPR(GPR::R0, 256);
   PrintCpuState();
   m_backend->Execute(function);
