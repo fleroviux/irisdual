@@ -12,6 +12,8 @@
 namespace dual::arm::jit {
 
 void ARM64Backend::LowerToMIR(const ir::BasicBlock& basic_block) {
+  return;
+  
   atom::Arena memory_arena{16384u};
 
   // Allocate MIR basic block
