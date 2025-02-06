@@ -54,12 +54,16 @@ class DynarecCPU final : public CPU {
     void Run(int cycles) override;
 
   private:
+    jit::ir::Function* TryJit();
+
     void TestBackend();
 
     InterpreterCPU m_fallback_cpu;
     jit::State m_cpu_state{};
     Memory& m_memory;
     std::unique_ptr<jit::Backend> m_backend{};
+
+    atom::Arena m_tmp_memory_arena{16384u};
 };
 
 } // namespace dual::arm

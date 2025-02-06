@@ -92,8 +92,18 @@ void DynarecCPU::SetSPSR(Mode mode, PSR value) {
 }
 
 void DynarecCPU::Run(int cycles) {
-  const auto CopyB2A = [this]<class A, class B>(A& a, B& b) {
+  const auto CopyB2A_Fast = [this]<class A, class B>(A& a, B& b) {
     a.SetCPSR(b.GetCPSR());
+
+    u32 pc = b.GetGPR(GPR::R15);
+    if(std::is_same_v<A, InterpreterCPU>) {
+      // Well, this is slightly painful. Fix this properly.
+      pc -= b.GetCPSR().thumb ? 4 : 8;
+    }
+    a.SetGPR(GPR::R15, pc);
+  };
+
+  const auto CopyB2A_Slow = [this]<class A, class B>(A& a, B& b) {
     a.SetSPSR(Mode::FIQ, b.GetSPSR(Mode::FIQ));
     a.SetSPSR(Mode::IRQ, b.GetSPSR(Mode::IRQ));
     a.SetSPSR(Mode::Supervisor, b.GetSPSR(Mode::Supervisor));
@@ -130,54 +140,79 @@ void DynarecCPU::Run(int cycles) {
     a.SetGPR(GPR::R14, Mode::Abort, b.GetGPR(GPR::R14, Mode::Abort));
     a.SetGPR(GPR::R13, Mode::Undefined, b.GetGPR(GPR::R13, Mode::Undefined));
     a.SetGPR(GPR::R14, Mode::Undefined, b.GetGPR(GPR::R14, Mode::Undefined));
-
-    u32 pc = b.GetGPR(GPR::R15);
-    if(std::is_same_v<A, InterpreterCPU>) {
-      // Well, this is slightly painful. Fix this properly.
-      pc -= b.GetCPSR().thumb ? 4 : 8;
-    }
-    a.SetGPR(GPR::R15, pc);
   };
 
+  bool using_jit = true;
+
   for(int i = 0; i < cycles; i++) {
-    CopyB2A(m_fallback_cpu, m_cpu_state);
-    m_fallback_cpu.Run(1);
-    CopyB2A(m_cpu_state, m_fallback_cpu);
+    jit::ir::Function* function = TryJit();
+
+    if(function) {
+      if(!using_jit) {
+        CopyB2A_Slow(m_cpu_state, m_fallback_cpu);
+        using_jit = true;
+      }
+      m_backend->Execute(*function, false);
+      m_tmp_memory_arena.Reset();
+    } else {
+      CopyB2A_Fast(m_fallback_cpu, m_cpu_state);
+      if(using_jit) {
+        CopyB2A_Slow(m_fallback_cpu, m_cpu_state);
+        using_jit = false;
+      }
+      m_fallback_cpu.Run(1);
+      CopyB2A_Fast(m_cpu_state, m_fallback_cpu);
+    }
   }
+
+  if(!using_jit) {
+    CopyB2A_Slow(m_cpu_state, m_fallback_cpu);
+  }
+}
+
+jit::ir::Function* DynarecCPU::TryJit() {
+  using namespace jit;
+
+  static int stupid_counter = 0;
+
+  const PSR cpsr = m_cpu_state.GetCPSR();
+
+  if(cpsr.thumb == 0) {
+    const u32 pc = m_cpu_state.GetGPR(GPR::PC) - 8u;
+    const u32 instruction = m_memory.ReadWord(pc, Memory::Bus::Code);
+    const Mode cpu_mode = (Mode)cpsr.mode;
+
+    if(instruction == 0xE3A00000 && (stupid_counter++ % 10) == 0) {
+      // TODO: implement ir::FunctionBuilder, or something like that.
+      ir::Function* function = new(m_tmp_memory_arena.Allocate(sizeof(ir::Function))) ir::Function{}; // TODO: check failure
+      ir::BasicBlock* bb = new(m_tmp_memory_arena.Allocate(sizeof(ir::BasicBlock))) ir::BasicBlock{0u}; // TODO: check failure
+      function->basic_blocks.push_back(bb);
+
+      ir::Emitter emitter{*bb, m_tmp_memory_arena};
+      emitter.STGPR(GPR::R0, cpu_mode, emitter.LDCONST(0u));
+      emitter.EXIT();
+      return function;
+    }
+  } else {
+    // ...
+  }
+
+  return nullptr;
 }
 
 void DynarecCPU::TestBackend() {
   using namespace jit;
 
-  atom::Arena memory_arena{16384u};
-
   ir::Function function{};
 
-  /*ir::Emitter emitter{function.basic_blocks.emplace_back(), memory_arena};
-
-  const ir::U32Value& value_r0 = emitter.LDGPR(GPR::R0, Mode::Supervisor);
-  const ir::U32Value& value_r1 = emitter.LDGPR(GPR::R1, Mode::Supervisor);
-
-  const ir::HostFlagsValue* value_hflags;
-  const ir::U32Value& add_result = emitter.ADD(value_r0, value_r1, &value_hflags);
-  emitter.STGPR(GPR::R2, Mode::Supervisor, add_result);
-
-  // TODO: create a bitfield insert instruction in the IR?
-  const ir::U32Value& value_nzcv = emitter.CVT_HFLAG_NZCV(*value_hflags);
-  const ir::U32Value& value_cpsr_old = emitter.LDCPSR();
-  const ir::U32Value& value_cpsr_new = emitter.ORR(value_nzcv, emitter.BIC(value_cpsr_old, emitter.LDCONST(0xF0000000u)));
-  emitter.STCPSR(value_cpsr_new);
-
-  emitter.EXIT();*/
-
-  ir::BasicBlock* bb_loop = new(memory_arena.Allocate(sizeof(ir::BasicBlock))) ir::BasicBlock{0u}; // TODO: check failure
+  ir::BasicBlock* bb_loop = new(m_tmp_memory_arena.Allocate(sizeof(ir::BasicBlock))) ir::BasicBlock{0u}; // TODO: check failure
   function.basic_blocks.push_back(bb_loop);
 
-  ir::BasicBlock* bb_exit = new(memory_arena.Allocate(sizeof(ir::BasicBlock))) ir::BasicBlock{1u}; // TODO: check failure
+  ir::BasicBlock* bb_exit = new(m_tmp_memory_arena.Allocate(sizeof(ir::BasicBlock))) ir::BasicBlock{1u}; // TODO: check failure
   function.basic_blocks.push_back(bb_exit);
 
   {
-    ir::Emitter emitter{*bb_loop, memory_arena};
+    ir::Emitter emitter{*bb_loop, m_tmp_memory_arena};
 
     const ir::U32Value& value_r0 = emitter.LDGPR(GPR::R0, Mode::Supervisor);
 
@@ -188,7 +223,7 @@ void DynarecCPU::TestBackend() {
   }
 
   {
-    ir::Emitter emitter{*bb_exit, memory_arena};
+    ir::Emitter emitter{*bb_exit, m_tmp_memory_arena};
     emitter.EXIT();
   }
 
@@ -203,8 +238,10 @@ void DynarecCPU::TestBackend() {
   m_cpu_state.Reset();
   m_cpu_state.SetGPR(GPR::R0, 256);
   PrintCpuState();
-  m_backend->Execute(function);
+  m_backend->Execute(function, true);
   PrintCpuState();
+
+  m_tmp_memory_arena.Reset();
 }
 
 } // namespace dual::arm

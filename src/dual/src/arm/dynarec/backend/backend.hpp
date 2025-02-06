@@ -9,7 +9,7 @@ class Backend {
   public:
     virtual ~Backend() = default;
 
-    virtual void Execute(const ir::Function& function) = 0;
+    virtual void Execute(const ir::Function& function, bool debug) = 0;
 };
 
 } // namespace dual::arm::jit

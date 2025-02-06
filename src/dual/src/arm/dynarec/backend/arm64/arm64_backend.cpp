@@ -2,7 +2,6 @@
 #include <atom/panic.hpp>
 #include <algorithm>
 #include <fmt/format.h>
-#include <oaknut/code_block.hpp>
 #include <oaknut/oaknut.hpp>
 #include <capstone/capstone.h>
 #include <vector>
@@ -22,24 +21,25 @@ ARM64Backend::ARM64Backend(State& cpu_state)
     : m_cpu_state{cpu_state} {
 }
 
-void ARM64Backend::Execute(const ir::Function& function) {
+void ARM64Backend::Execute(const ir::Function& function, bool debug) {
   using namespace oaknut::util;
 
   static constexpr auto XReg_State = X0;
 
-  oaknut::CodeBlock code_block{4096u};
-  oaknut::CodeGenerator code{code_block.ptr()};
+  oaknut::CodeGenerator code{m_tmp_code_block.ptr()};
 
   oaknut::Label label_exit{};
   std::vector<oaknut::Label> basic_block_labels{};
   basic_block_labels.resize(function.basic_blocks.size());
 
   const void* code_begin = code.xptr<void*>();
-  code_block.unprotect();
+  m_tmp_code_block.unprotect();
   code.MOVP2R(XReg_State, &m_cpu_state);
 
-  fmt::print("===========================================\n");
-  fmt::print("IR function:\n{}\n", ir::disassemble(function));
+  if(debug) {
+    fmt::print("===========================================\n");
+    fmt::print("IR function:\n{}\n", ir::disassemble(function));
+  }
 
   // TODO(fleroviux): use a topological sort to linearize the instructions? This would give us more flexibility with the order we create basic blocks in.
 
@@ -226,12 +226,14 @@ void ARM64Backend::Execute(const ir::Function& function) {
 
   code.l(label_exit);
   code.RET();
-  code_block.protect();
-  code_block.invalidate_all();
+  m_tmp_code_block.protect();
+  m_tmp_code_block.invalidate_all();
 
-  fmt::print("Compiled Function (ARM64):\n");
-  DisasA64(code_begin, code.xptr<void*>());
-  fmt::print("===========================================\n");
+  if(debug) {
+    fmt::print("Compiled Function (ARM64):\n");
+    DisasA64(code_begin, code.xptr<void *>());
+    fmt::print("===========================================\n");
+  }
 
   ((void (*)())code_begin)();
 }
