@@ -15,7 +15,7 @@ struct Instruction {
     // Constant Loading
     LDCONST,
 
-    // Guest Context Read/Write
+    // Guest State Read/Write
     LDGPR,
     STGPR,
     LDCPSR,
@@ -31,6 +31,13 @@ struct Instruction {
     BR,
     BR_IF,
     EXIT,
+
+    // Barrel Shifter
+    LSL,
+    LSR,
+    ASR,
+    ROR,
+    RRX,
 
     // Data processing
     AND,

@@ -137,6 +137,11 @@ static const char* get_instruction_mnemonic(Instruction::Type type) {
     case Instruction::Type::BR:    return "br";
     case Instruction::Type::BR_IF: return "br_if";
     case Instruction::Type::EXIT:  return "exit";
+    case Instruction::Type::LSL:   return "lsl";
+    case Instruction::Type::LSR:   return "lsr";
+    case Instruction::Type::ASR:   return "asr";
+    case Instruction::Type::ROR:   return "ror";
+    case Instruction::Type::RRX:   return "rrx";
     case Instruction::Type::BIC:   return "bic";
     case Instruction::Type::ADD:   return "add";
     case Instruction::Type::ORR:   return "orr";

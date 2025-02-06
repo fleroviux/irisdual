@@ -72,11 +72,14 @@ void ARM64Backend::Execute(const ir::Function& function, bool debug) {
 
     while(instruction != nullptr) {
       switch(instruction->type) {
+        // Constant Loading
         case ir::Instruction::Type::LDCONST: {
           const oaknut::WReg result_reg = GetLocation(instruction->GetOut(0u)).AsWReg();
           code.MOV(result_reg, instruction->GetArg(0u).AsConstU32());
           break;
         }
+
+        // Guest State Read/Write
         case ir::Instruction::Type::LDGPR: {
           const ir::GPR gpr = instruction->GetArg(0u).AsGPR();
           const ir::Mode cpu_mode = instruction->GetArg(1u).AsMode();
@@ -113,12 +116,16 @@ void ARM64Backend::Execute(const ir::Function& function, bool debug) {
           code.STR(value_reg, XReg_State, m_cpu_state.GetOffsetToSPSR(cpu_mode));
           break;
         }
+
+        // Flag Management
         case ir::Instruction::Type::CVT_HFLAG_NZCV: {
           const oaknut::WReg hflags_reg = GetLocation(instruction->GetArg(0u).AsValue()).AsWReg();
           const oaknut::WReg nzcv_reg = GetLocation(instruction->GetOut(0u)).AsWReg();
           code.MOV(nzcv_reg, hflags_reg); // TODO(fleroviux): implement move elimination
           break;
         }
+
+        // Control Flow
         case ir::Instruction::Type::BR: {
           const ir::BasicBlock::ID target_bb = instruction->GetArg(0u).AsBasicBlock();
           if(target_bb != next_bb_index) { // This only works if IDs and indices of basic blocks match up. They always should though...
@@ -163,13 +170,15 @@ void ARM64Backend::Execute(const ir::Function& function, bool debug) {
           got_terminal_instruction = true;
           break;
         }
+
+        // Data Processing
         case ir::Instruction::Type::BIC: {
           const oaknut::WReg lhs_reg = GetLocation(instruction->GetArg(0u).AsValue()).AsWReg();
           const oaknut::WReg rhs_reg = GetLocation(instruction->GetArg(1u).AsValue()).AsWReg();
           const oaknut::WReg result_reg = GetLocation(instruction->GetOut(0u)).AsWReg();
 
           if(instruction->flags & ir::Instruction::Flag::OutputHostFlags) {
-            // TODO(fleroviux): implement support for flag only output
+            // TODO(fleroviux): implement support for flag only output?
             const oaknut::WReg hflags_reg = GetLocation(instruction->GetOut(1u)).AsWReg();
             code.BICS(result_reg, lhs_reg, rhs_reg);
             code.MRS(hflags_reg.toX(), oaknut::SystemReg::NZCV);
@@ -185,7 +194,7 @@ void ARM64Backend::Execute(const ir::Function& function, bool debug) {
           const oaknut::WReg result_reg = GetLocation(instruction->GetOut(0u)).AsWReg();
 
           if(instruction->flags & ir::Instruction::Flag::OutputHostFlags) {
-            // TODO(fleroviux): implement support for flag only output
+            // TODO(fleroviux): implement support for flag only output?
             const oaknut::WReg hflags_reg = GetLocation(instruction->GetOut(1u)).AsWReg();
             code.ADDS(result_reg, lhs_reg, rhs_reg);
             code.MRS(hflags_reg.toX(), oaknut::SystemReg::NZCV);
@@ -201,7 +210,7 @@ void ARM64Backend::Execute(const ir::Function& function, bool debug) {
           const oaknut::WReg result_reg = GetLocation(instruction->GetOut(0u)).AsWReg();
 
           if(instruction->flags & ir::Instruction::Flag::OutputHostFlags) {
-            // TODO(fleroviux): implement support for flag only output
+            // TODO(fleroviux): implement support for flag only output?
             const oaknut::WReg hflags_reg = GetLocation(instruction->GetOut(1u)).AsWReg();
             code.ORR(result_reg, lhs_reg, rhs_reg);
             code.TST(result_reg, result_reg);

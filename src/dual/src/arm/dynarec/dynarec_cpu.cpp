@@ -214,16 +214,23 @@ void DynarecCPU::TestBackend() {
   {
     ir::Emitter emitter{*bb_loop, m_tmp_memory_arena};
 
-    const ir::U32Value& value_r0 = emitter.LDGPR(GPR::R0, Mode::Supervisor);
+    const ir::U32Value& value_r0 = emitter.LDGPR(GPR::R0, Mode::User);
 
     const ir::HostFlagsValue* hflags;
     const ir::U32Value& result = emitter.ADD(value_r0, emitter.LDCONST(0xFFFFFFFFu), &hflags);
-    emitter.STGPR(GPR::R0, Mode::Supervisor, result);
+    emitter.STGPR(GPR::R0, Mode::User, result);
     emitter.BR_IF(ir::Condition::EQ, *hflags, *bb_exit, *bb_loop);
   }
 
   {
     ir::Emitter emitter{*bb_exit, m_tmp_memory_arena};
+
+//    const ir::HostFlagsValue* hflags;
+//    const ir::U32Value& r1_value = emitter.LDGPR(GPR::R1, Mode::User);
+//    const ir::U32Value& result_value = emitter.LSL(r1_value, emitter.LDCONST(1), &hflags);
+//    emitter.STGPR(GPR::R1, Mode::User, result_value);
+//    emitter.STCPSR(emitter.CVT_HFLAG_NZCV(*hflags));
+
     emitter.EXIT();
   }
 
