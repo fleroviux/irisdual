@@ -153,7 +153,6 @@ void DynarecCPU::Run(int cycles) {
         using_jit = true;
       }
       m_backend->Execute(*function, false);
-      m_tmp_memory_arena.Reset();
     } else {
       CopyB2A_Fast(m_fallback_cpu, m_cpu_state);
       if(using_jit) {
@@ -178,20 +177,25 @@ jit::ir::Function* DynarecCPU::TryJit() {
   const PSR cpsr = m_cpu_state.GetCPSR();
 
   if(cpsr.thumb == 0) {
-    const u32 pc = m_cpu_state.GetGPR(GPR::PC) - 8u;
-    const u32 instruction = m_memory.ReadWord(pc, Memory::Bus::Code);
+    const u32 r15 = m_cpu_state.GetGPR(GPR::PC);
+    const u32 instruction = m_memory.ReadWord(r15 - 8u, Memory::Bus::Code);
     const Mode cpu_mode = (Mode)cpsr.mode;
 
-    if(instruction == 0xE3A00000 && (stupid_counter++ % 10) == 0) {
+    if((stupid_counter++ % 10) == 0) {
+      m_tmp_memory_arena.Reset();
+
       // TODO: implement ir::FunctionBuilder, or something like that.
       ir::Function* function = new(m_tmp_memory_arena.Allocate(sizeof(ir::Function))) ir::Function{}; // TODO: check failure
       ir::BasicBlock* bb = new(m_tmp_memory_arena.Allocate(sizeof(ir::BasicBlock))) ir::BasicBlock{0u}; // TODO: check failure
       function->basic_blocks.push_back(bb);
 
       ir::Emitter emitter{*bb, m_tmp_memory_arena};
-      emitter.STGPR(GPR::R0, cpu_mode, emitter.LDCONST(0u));
-      emitter.EXIT();
-      return function;
+
+      const TranslatorA32::Code code = m_translator_a32.Translate(r15, cpu_mode, instruction, emitter);
+      if(code == TranslatorA32::Code::Success) {
+        emitter.EXIT();
+        return function;
+      }
     }
   } else {
     // ...

@@ -12,6 +12,7 @@
 #include "backend/backend.hpp"
 #include "ir/emitter.hpp"
 #include "state.hpp"
+#include "translator_a32.hpp"
 
 namespace dual::arm {
 
@@ -63,6 +64,7 @@ class DynarecCPU final : public CPU {
     Memory& m_memory;
     std::unique_ptr<jit::Backend> m_backend{};
 
+    jit::TranslatorA32 m_translator_a32{};
     atom::Arena m_tmp_memory_arena{16384u};
 };
 
