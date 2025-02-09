@@ -15,23 +15,25 @@ void GuestStateAccessRemovalPass::Run(Function& function) {
 
 void GuestStateAccessRemovalPass::RunBasicBlock(BasicBlock& basic_block) {
   static constexpr auto id = [](GPR gpr, Mode cpu_mode) constexpr {
-    const int max_sys_gpr = cpu_mode == Mode::FIQ ? 7 : 12;
-    if((int)gpr <= max_sys_gpr || gpr == GPR::PC || cpu_mode == Mode::User) {
+    const int max_shared_gpr = cpu_mode == Mode::FIQ ? 7 : 12;
+    if((int)gpr <= max_shared_gpr || gpr == GPR::PC || cpu_mode == Mode::User) {
       return (int)gpr | (int)Mode::System << 4;
     }
     return (int)gpr | (int)cpu_mode << 4;
   };
 
-  std::array<Value::ID, 512u> gpr_value{};
-  std::array<Value::ID, 32u> spsr_value{};
-  Value::ID cpsr_value{Value::invalid_id};
+  static constexpr auto cpsr_id = 0;
 
-  std::array<Instruction*, 512u> gpr_store_instruction{};
-  std::array<Instruction*, 32u> spsr_store_instruction{};
-  Instruction* cpsr_store_instruction{};
+  // Track which IR value (if any) contains the current value of each guest GPR and PSR.
+  std::array<Value::ID, 512u> current_gpr_value{};
+  std::array<Value::ID,  32u> current_psr_value{};
 
-  gpr_value.fill(Value::invalid_id);
-  spsr_value.fill(Value::invalid_id);
+  // Track which IR instruction (if any) most recently wrote to a guest GPR or PSR.
+  std::array<Instruction*, 512u> most_recent_gpr_store{};
+  std::array<Instruction*,  32u> most_recent_psr_store{};
+
+  current_gpr_value.fill(Value::invalid_id);
+  current_psr_value.fill(Value::invalid_id);
 
   Instruction* instruction = basic_block.head;
 
@@ -40,11 +42,14 @@ void GuestStateAccessRemovalPass::RunBasicBlock(BasicBlock& basic_block) {
       case Instruction::Type::LDGPR: {
         const GPR gpr = instruction->GetArg(0u).AsGPR();
         const Mode cpu_mode = instruction->GetArg(1u).AsMode();
-        const Value::ID value = instruction->GetOut(0u);
-        if(gpr_value[id(gpr, cpu_mode)] == Value::invalid_id) {
-          gpr_value[id(gpr, cpu_mode)] = value;
+        const Value::ID result_value = instruction->GetOut(0u);
+
+        const size_t gpr_id = id(gpr, cpu_mode);
+
+        if(current_gpr_value[gpr_id] == Value::invalid_id) {
+          current_gpr_value[gpr_id] = result_value;
         } else {
-          ReplaceValueUses(basic_block, value, gpr_value[id(gpr, cpu_mode)]);
+          RewriteValueUseRefs(basic_block, result_value, current_gpr_value[gpr_id]);
           RemoveInstruction(basic_block, instruction);
         }
         break;
@@ -52,52 +57,62 @@ void GuestStateAccessRemovalPass::RunBasicBlock(BasicBlock& basic_block) {
       case Instruction::Type::STGPR: {
         const GPR gpr = instruction->GetArg(0u).AsGPR();
         const Mode cpu_mode = instruction->GetArg(1u).AsMode();
-        const Value::ID value = instruction->GetArg(2u).AsValue();
-        gpr_value[id(gpr, cpu_mode)] = value;
-        if(gpr_store_instruction[id(gpr, cpu_mode)]) {
-          RemoveInstruction(basic_block, gpr_store_instruction[id(gpr, cpu_mode)]);
+        const Value::ID stored_value = instruction->GetArg(2u).AsValue();
+
+        const size_t gpr_id = id(gpr, cpu_mode);
+
+        current_gpr_value[gpr_id] = stored_value;
+
+        if(most_recent_gpr_store[gpr_id]) {
+          RemoveInstruction(basic_block, most_recent_gpr_store[gpr_id]);
         }
-        gpr_store_instruction[id(gpr, cpu_mode)] = instruction;
+        most_recent_gpr_store[gpr_id] = instruction;
         break;
       }
       case Instruction::Type::LDCPSR: {
-        const Value::ID value = instruction->GetOut(0u);
-        if(cpsr_value == Value::invalid_id) {
-          cpsr_value = value;
+        const Value::ID result_value = instruction->GetOut(0u);
+
+        if(current_psr_value[cpsr_id] == Value::invalid_id) {
+          current_psr_value[cpsr_id] = result_value;
         } else {
-          ReplaceValueUses(basic_block, value, cpsr_value);
+          RewriteValueUseRefs(basic_block, result_value, current_psr_value[cpsr_id]);
           RemoveInstruction(basic_block, instruction);
         }
         break;
       }
       case Instruction::Type::STCPSR: {
-        const Value::ID value = instruction->GetArg(0u).AsValue();
-        cpsr_value = value;
-        if(cpsr_store_instruction) {
-          RemoveInstruction(basic_block, cpsr_store_instruction);
+        const Value::ID stored_value = instruction->GetArg(0u).AsValue();
+
+        current_psr_value[cpsr_id] = stored_value;
+
+        if(most_recent_psr_store[cpsr_id]) {
+          RemoveInstruction(basic_block, most_recent_psr_store[cpsr_id]);
         }
-        cpsr_store_instruction = instruction;
+        most_recent_psr_store[cpsr_id] = instruction;
         break;
       }
       case Instruction::Type::LDSPSR: {
         const Mode cpu_mode = instruction->GetArg(0u).AsMode();
-        const Value::ID value = instruction->GetOut(0u);
-        if(spsr_value[(int)cpu_mode] == Value::invalid_id) {
-          spsr_value[(int)cpu_mode] = value;
+        const Value::ID result_value = instruction->GetOut(0u);
+
+        if(current_psr_value[(int)cpu_mode] == Value::invalid_id) {
+          current_psr_value[(int)cpu_mode] = result_value;
         } else {
-          ReplaceValueUses(basic_block, value, spsr_value[(int) cpu_mode]);
+          RewriteValueUseRefs(basic_block, result_value, current_psr_value[(int)cpu_mode]);
           RemoveInstruction(basic_block, instruction);
         }
         break;
       }
       case Instruction::Type::STSPSR: {
         const Mode cpu_mode = instruction->GetArg(0u).AsMode();
-        const Value::ID value = instruction->GetArg(1u).AsValue();
-        spsr_value[(int)cpu_mode] = value;
-        if(spsr_store_instruction[(int)cpu_mode]) {
-          RemoveInstruction(basic_block, spsr_store_instruction[(int) cpu_mode]);
+        const Value::ID stored_value = instruction->GetArg(1u).AsValue();
+
+        current_psr_value[(int)cpu_mode] = stored_value;
+
+        if(most_recent_psr_store[(int)cpu_mode]) {
+          RemoveInstruction(basic_block, most_recent_psr_store[(int)cpu_mode]);
         }
-        spsr_store_instruction[(int)cpu_mode] = instruction;
+        most_recent_psr_store[(int)cpu_mode] = instruction;
         break;
       }
       default: {

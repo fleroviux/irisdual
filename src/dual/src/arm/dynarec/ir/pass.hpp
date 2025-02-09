@@ -19,7 +19,7 @@ class Pass {
   protected:
     // TODO: these utility functions likely should go elsewhere in the long run.
 
-    static void ReplaceValueUses(ir::BasicBlock& basic_block, ir::Value::ID old_value_id, ir::Value::ID new_value_id) {
+    static void RewriteValueUseRefs(ir::BasicBlock& basic_block, ir::Value::ID old_value_id, ir::Value::ID new_value_id) {
       if(old_value_id == new_value_id) {
         return;
       }
