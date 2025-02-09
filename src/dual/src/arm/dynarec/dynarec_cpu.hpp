@@ -7,10 +7,12 @@
 #include <dual/common/cycle_counter.hpp>
 #include <memory>
 #include <span>
+#include <vector>
 
 #include "arm/interpreter/interpreter_cpu.hpp"
 #include "backend/backend.hpp"
 #include "ir/emitter.hpp"
+#include "ir/pass.hpp"
 #include "state.hpp"
 #include "translator_a32.hpp"
 
@@ -58,6 +60,7 @@ class DynarecCPU final : public CPU {
     jit::ir::Function* TryJit();
 
     void TestBackend();
+    void OptimizeFunction(jit::ir::Function& function);
 
     InterpreterCPU m_fallback_cpu;
     jit::State m_cpu_state{};
@@ -66,6 +69,7 @@ class DynarecCPU final : public CPU {
 
     jit::TranslatorA32 m_translator_a32{};
     atom::Arena m_tmp_memory_arena{16384u};
+    std::vector<std::unique_ptr<jit::ir::Pass>> m_ir_passes{};
 };
 
 } // namespace dual::arm

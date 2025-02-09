@@ -3,6 +3,7 @@
 
 #include "arm/interpreter/interpreter_cpu.hpp"
 #include "backend/arm64/arm64_backend.hpp"
+#include "ir/passes/guest_state_access_removal_pass.hpp"
 #include "dynarec_cpu.hpp"
 
 namespace dual::arm {
@@ -16,6 +17,7 @@ DynarecCPU::DynarecCPU(
 )   : m_fallback_cpu{memory, scheduler, cycle_counter, model, coprocessors}
     , m_memory{memory} {
   m_backend = std::make_unique<jit::ARM64Backend>(m_cpu_state);
+  m_ir_passes.push_back(std::make_unique<jit::ir::GuestStateAccessRemovalPass>());
 }
 
 void DynarecCPU::Reset() {
@@ -194,6 +196,7 @@ jit::ir::Function* DynarecCPU::TryJit() {
       const TranslatorA32::Code code = m_translator_a32.Translate(r15, cpu_mode, instruction, emitter);
       if(code == TranslatorA32::Code::Success) {
         emitter.EXIT();
+        OptimizeFunction(*function);
         return function;
       }
     }
@@ -223,6 +226,16 @@ void DynarecCPU::TestBackend() {
     const ir::HostFlagsValue* hflags;
     const ir::U32Value& result = emitter.ADD(value_r0, emitter.LDCONST(0xFFFFFFFFu), &hflags);
     emitter.STGPR(GPR::R0, Mode::User, result);
+    emitter.STGPR(GPR::R8, Mode::User, emitter.LDGPR(GPR::R0, Mode::User));
+    emitter.STGPR(GPR::R0, Mode::User, emitter.LDGPR(GPR::R0, Mode::User));
+
+    emitter.STCPSR(emitter.LDCPSR());
+    emitter.STCPSR(emitter.LDCPSR());
+    emitter.STSPSR(Mode::IRQ, emitter.LDSPSR(Mode::IRQ));
+    emitter.STSPSR(Mode::FIQ, emitter.LDSPSR(Mode::FIQ));
+    emitter.STSPSR(Mode::IRQ, emitter.LDSPSR(Mode::IRQ));
+    emitter.STSPSR(Mode::FIQ, emitter.LDSPSR(Mode::FIQ));
+
     emitter.BR_IF(ir::Condition::EQ, *hflags, *bb_exit, *bb_loop);
   }
 
@@ -249,10 +262,17 @@ void DynarecCPU::TestBackend() {
   m_cpu_state.Reset();
   m_cpu_state.SetGPR(GPR::R0, 256);
   PrintCpuState();
+  OptimizeFunction(function);
   m_backend->Execute(function, true);
   PrintCpuState();
 
   m_tmp_memory_arena.Reset();
+}
+
+void DynarecCPU::OptimizeFunction(jit::ir::Function& function) {
+  for(auto& pass : m_ir_passes) {
+    pass->Run(function);
+  }
 }
 
 } // namespace dual::arm
