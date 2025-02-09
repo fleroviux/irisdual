@@ -221,33 +221,33 @@ void DynarecCPU::TestBackend() {
   {
     ir::Emitter emitter{*bb_loop, m_tmp_memory_arena};
 
-    const ir::U32Value& value_r0 = emitter.LDGPR(GPR::R0, Mode::User);
+//    const ir::U32Value& value_r0 = emitter.LDGPR(GPR::R0, Mode::User);
+//    const ir::HostFlagsValue* hflags;
+//    const ir::U32Value& result = emitter.ADD(value_r0, emitter.LDCONST(0xFFFFFFFFu), &hflags);
+//    emitter.STGPR(GPR::R0, Mode::User, result);
+//    emitter.STGPR(GPR::R8, Mode::User, emitter.LDGPR(GPR::R0, Mode::User));
+//    emitter.STGPR(GPR::R0, Mode::User, emitter.LDGPR(GPR::R0, Mode::User));
+//    emitter.STCPSR(emitter.LDCPSR());
+//    emitter.STCPSR(emitter.LDCPSR());
+//    emitter.STSPSR(Mode::IRQ, emitter.LDSPSR(Mode::IRQ));
+//    emitter.STSPSR(Mode::FIQ, emitter.LDSPSR(Mode::FIQ));
+//    emitter.STSPSR(Mode::IRQ, emitter.LDSPSR(Mode::IRQ));
+//    emitter.STSPSR(Mode::FIQ, emitter.LDSPSR(Mode::FIQ));
+//    emitter.BR_IF(ir::Condition::EQ, *hflags, *bb_exit, *bb_loop);
 
-    const ir::HostFlagsValue* hflags;
-    const ir::U32Value& result = emitter.ADD(value_r0, emitter.LDCONST(0xFFFFFFFFu), &hflags);
-    emitter.STGPR(GPR::R0, Mode::User, result);
-    emitter.STGPR(GPR::R8, Mode::User, emitter.LDGPR(GPR::R0, Mode::User));
-    emitter.STGPR(GPR::R0, Mode::User, emitter.LDGPR(GPR::R0, Mode::User));
+    const ir::HostFlagsValue* add_hflags;
+    const ir::U32Value& add_result = emitter.ADD(emitter.LDGPR(GPR::R0, Mode::User), emitter.LDCONST(0xFFFFFFFFu), &add_hflags);
+    emitter.STGPR(GPR::R0, Mode::User, add_result);
 
-    emitter.STCPSR(emitter.LDCPSR());
-    emitter.STCPSR(emitter.LDCPSR());
-    emitter.STSPSR(Mode::IRQ, emitter.LDSPSR(Mode::IRQ));
-    emitter.STSPSR(Mode::FIQ, emitter.LDSPSR(Mode::FIQ));
-    emitter.STSPSR(Mode::IRQ, emitter.LDSPSR(Mode::IRQ));
-    emitter.STSPSR(Mode::FIQ, emitter.LDSPSR(Mode::FIQ));
+    const ir::U32Value& cpsr_old = emitter.LDCPSR();
+    const ir::U32Value& cpsr_new = emitter.ORR(emitter.BIC(cpsr_old, emitter.LDCONST(0xF0000000u)), emitter.CVT_HFLAG_NZCV(*add_hflags));
+    emitter.STCPSR(cpsr_new);
 
-    emitter.BR_IF(ir::Condition::EQ, *hflags, *bb_exit, *bb_loop);
+    emitter.BR_IF(ir::Condition::EQ, emitter.CVT_NZCV_HFLAG(emitter.LDCPSR()), *bb_exit, *bb_loop);
   }
 
   {
     ir::Emitter emitter{*bb_exit, m_tmp_memory_arena};
-
-//    const ir::HostFlagsValue* hflags;
-//    const ir::U32Value& r1_value = emitter.LDGPR(GPR::R1, Mode::User);
-//    const ir::U32Value& result_value = emitter.LSL(r1_value, emitter.LDCONST(1), &hflags);
-//    emitter.STGPR(GPR::R1, Mode::User, result_value);
-//    emitter.STCPSR(emitter.CVT_HFLAG_NZCV(*hflags));
-
     emitter.EXIT();
   }
 

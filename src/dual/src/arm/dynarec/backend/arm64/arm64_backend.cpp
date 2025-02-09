@@ -124,6 +124,12 @@ void ARM64Backend::Execute(const ir::Function& function, bool debug) {
           code.MOV(nzcv_reg, hflags_reg); // TODO(fleroviux): implement move elimination
           break;
         }
+        case ir::Instruction::Type::CVT_NZCV_HFLAG: {
+          const oaknut::WReg nzcv_reg = GetLocation(instruction->GetArg(0u).AsValue()).AsWReg();
+          const oaknut::WReg hflags_reg = GetLocation(instruction->GetOut(0u)).AsWReg();
+          code.MOV(hflags_reg, nzcv_reg); // TODO(fleroviux): implement move elimination
+          break;
+        }
 
         // Control Flow
         case ir::Instruction::Type::BR: {

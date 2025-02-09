@@ -25,7 +25,7 @@ struct Instruction {
 
     // Flag Management
     CVT_HFLAG_NZCV,
-    // ...
+    CVT_NZCV_HFLAG,
 
     // Control Flow
     BR,

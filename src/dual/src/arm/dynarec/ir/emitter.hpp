@@ -52,6 +52,10 @@ class Emitter {
       return std::get<0>(Emit<U32Value>(Type::CVT_HFLAG_NZCV, 0u, hflag_value));
     }
 
+    const HostFlagsValue& CVT_NZCV_HFLAG(const U32Value& nzcv_value) {
+      return std::get<0>(Emit<HostFlagsValue>(Type::CVT_NZCV_HFLAG, 0u, nzcv_value));
+    }
+
     void BR(const BasicBlock& basic_block) {
       Emit(Type::BR, 0u, basic_block);
     }
