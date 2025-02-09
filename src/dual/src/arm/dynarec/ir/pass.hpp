@@ -14,32 +14,32 @@ class Pass {
   public:
     virtual ~Pass() = default;
 
-    virtual void Run(ir::Function& function) = 0;
+    virtual void Run(Function& function) = 0;
 
   protected:
     // TODO: these utility functions likely should go elsewhere in the long run.
 
-    static void RewriteValueUseRefs(ir::BasicBlock& basic_block, ir::Value::ID old_value_id, ir::Value::ID new_value_id) {
+    static void RewriteValueUseRefs(BasicBlock& basic_block, Value::ID old_value_id, Value::ID new_value_id) {
       if(old_value_id == new_value_id) {
         return;
       }
 
-      ir::Value* old_value = basic_block.values[old_value_id];
-      ir::Value* new_value = basic_block.values[new_value_id];
+      Value* old_value = basic_block.values[old_value_id];
+      Value* new_value = basic_block.values[new_value_id];
 
-      for(const ir::Ref& use_ref : old_value->use_refs) {
-        use_ref.instruction->arg_slots[use_ref.slot] = ir::Input{*new_value};
+      for(const Ref& use_ref : old_value->use_refs) {
+        use_ref.instruction->arg_slots[use_ref.slot] = Input{*new_value};
         new_value->use_refs.push_back(use_ref);
       }
 
       old_value->use_refs.clear();
     }
 
-    static void RemoveInstruction(ir::BasicBlock& basic_block, ir::Instruction* instruction) {
+    static void RemoveInstruction(BasicBlock& basic_block, Instruction* instruction) {
       // Ensure that the instruction has no uses before it is deleted.
       // TODO: this is somewhat inefficient, only do this in debug?
       for(size_t out_slot = 0u; out_slot < instruction->out_slot_count; out_slot++) {
-        ir::Value* value = basic_block.values[instruction->out_slots[out_slot]];
+        Value* value = basic_block.values[instruction->out_slots[out_slot]];
         if(!value->use_refs.empty()) {
           ATOM_PANIC("IR instruction cannot be removed because it has active uses");
         }

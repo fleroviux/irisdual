@@ -5,12 +5,12 @@
 
 namespace dual::arm::jit::ir {
 
-class GuestStateAccessRemovalPass : public Pass {
+class GuestStateAccessRemovalPass final : public Pass {
   public:
-    void Run(ir::Function& function) override;
+    void Run(Function& function) override;
 
   private:
-    static void RunBasicBlock(ir::BasicBlock& basic_block);
+    static void RunBasicBlock(BasicBlock& basic_block);
 };
 
 } // namespace dual::arm::jit::ir
