@@ -100,6 +100,14 @@ class Emitter {
       return EmitBinaryALU(Type::ORR, lhs, rhs, hflags_out);
     }
 
+    const U32Value& BITCMB(const U32Value& lhs, const U32Value& rhs, const U32Value& mask) {
+      return std::get<0>(Emit<U32Value>(Type::BITCMB, 0u, lhs, rhs, mask));
+    }
+
+    const U32Value& BITCMB(const U32Value& lhs, const U32Value& rhs, u32 mask) {
+      return BITCMB(lhs, rhs, LDCONST(mask));
+    }
+
   private:
     using Type = Instruction::Type;
     using Flag = Instruction::Flag;

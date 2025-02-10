@@ -25,6 +25,7 @@ void ARM64Backend::Execute(const ir::Function& function, bool debug) {
   using namespace oaknut::util;
 
   static constexpr auto XReg_State = X0;
+  static constexpr auto WReg_Tmp = W1;
 
   oaknut::CodeGenerator code{m_tmp_code_block.ptr()};
 
@@ -52,11 +53,11 @@ void ARM64Backend::Execute(const ir::Function& function, bool debug) {
     // here comes the poor girl's register allocator!
     std::vector<ARM64ValueLocation> location_map{};
     location_map.resize(basic_block.values.size());
-    if(location_map.size() > 15) {
+    if(location_map.size() > 14) {
       ATOM_PANIC("out of registers");
     }
     for(int i = 0; i < location_map.size(); i++) {
-      location_map[i] = ARM64ValueLocation{oaknut::WReg{i + 1}};
+      location_map[i] = ARM64ValueLocation{oaknut::WReg{i + 2}};
     }
     const auto GetLocation = [&](ir::Value::ID value_id) {
       return location_map[value_id];
@@ -224,6 +225,21 @@ void ARM64Backend::Execute(const ir::Function& function, bool debug) {
           } else {
             code.ORR(result_reg, lhs_reg, rhs_reg);
           }
+          break;
+        }
+
+        // Other
+        case ir::Instruction::Type::BITCMB: {
+          const oaknut::WReg lhs_reg = GetLocation(instruction->GetArg(0u).AsValue()).AsWReg();
+          const oaknut::WReg rhs_reg = GetLocation(instruction->GetArg(1u).AsValue()).AsWReg();
+          const oaknut::WReg mask_reg = GetLocation(instruction->GetArg(2u).AsValue()).AsWReg();
+          const oaknut::WReg result_reg = GetLocation(instruction->GetOut(0u)).AsWReg();
+
+          // TODO(fleroviux): this can be done much more efficiently depending on the mask, but will probably require lowering passes
+          // Also the AND won't be necessary in the case of flags many times, ensure we do not needlessly do that.
+          code.BIC(result_reg, lhs_reg, mask_reg);
+          code.AND(WReg_Tmp, rhs_reg, mask_reg);
+          code.ORR(result_reg, result_reg, WReg_Tmp);
           break;
         }
         default: {

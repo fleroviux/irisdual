@@ -52,6 +52,9 @@ struct Instruction {
     ORR,
     MOV,
     MVN,
+
+    // Other
+    BITCMB
   };
 
   enum Flag : u16 {

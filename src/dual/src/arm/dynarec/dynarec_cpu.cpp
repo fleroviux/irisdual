@@ -242,7 +242,8 @@ void DynarecCPU::TestBackend() {
     emitter.STGPR(GPR::R0, Mode::User, add_result);
 
     const ir::U32Value& cpsr_old = emitter.LDCPSR();
-    const ir::U32Value& cpsr_new = emitter.ORR(emitter.BIC(cpsr_old, emitter.LDCONST(0xF0000000u)), emitter.CVT_HFLAG_NZCV(*add_hflags));
+    const ir::U32Value& nzcv_out = emitter.CVT_HFLAG_NZCV(*add_hflags);
+    const ir::U32Value& cpsr_new = emitter.BITCMB(cpsr_old, nzcv_out, 0xF0000000u);
     emitter.STCPSR(cpsr_new);
 
     emitter.BR_IF(ir::Condition::EQ, emitter.CVT_NZCV_HFLAG(emitter.LDCPSR()), *bb_exit, *bb_loop);

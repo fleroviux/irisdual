@@ -135,17 +135,18 @@ static const char* get_instruction_mnemonic(Instruction::Type type) {
     case Instruction::Type::STSPSR:  return "stspsr";
     case Instruction::Type::CVT_HFLAG_NZCV: return "cvt.hflag.nzcv";
     case Instruction::Type::CVT_NZCV_HFLAG: return "cvt.nzcv.hflag";
-    case Instruction::Type::BR:    return "br";
-    case Instruction::Type::BR_IF: return "br_if";
-    case Instruction::Type::EXIT:  return "exit";
-    case Instruction::Type::LSL:   return "lsl";
-    case Instruction::Type::LSR:   return "lsr";
-    case Instruction::Type::ASR:   return "asr";
-    case Instruction::Type::ROR:   return "ror";
-    case Instruction::Type::RRX:   return "rrx";
-    case Instruction::Type::BIC:   return "bic";
-    case Instruction::Type::ADD:   return "add";
-    case Instruction::Type::ORR:   return "orr";
+    case Instruction::Type::BR:     return "br";
+    case Instruction::Type::BR_IF:  return "br_if";
+    case Instruction::Type::EXIT:   return "exit";
+    case Instruction::Type::LSL:    return "lsl";
+    case Instruction::Type::LSR:    return "lsr";
+    case Instruction::Type::ASR:    return "asr";
+    case Instruction::Type::ROR:    return "ror";
+    case Instruction::Type::RRX:    return "rrx";
+    case Instruction::Type::BIC:    return "bic";
+    case Instruction::Type::ADD:    return "add";
+    case Instruction::Type::ORR:    return "orr";
+    case Instruction::Type::BITCMB: return "bitcmb";
     default: ATOM_PANIC("unhandled instruction type: {}", (int)type);
   }
 }
