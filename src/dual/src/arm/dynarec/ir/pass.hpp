@@ -1,7 +1,9 @@
 
 #pragma once
 
+#include <atom/integer.hpp>
 #include <atom/panic.hpp>
+#include <optional>
 
 #include "basic_block.hpp"
 #include "function.hpp"
@@ -56,6 +58,14 @@ class Pass {
       } else {
         basic_block.tail = instruction->prev;
       }
+    }
+
+    static std::optional<u32> TryGetConst(BasicBlock& basic_block, Value::ID value_id) {
+      Instruction* src_instruction = basic_block.values[value_id]->create_ref.instruction;
+      if(src_instruction->type == Instruction::Type::LDCONST) {
+        return src_instruction->GetArg(0u).AsConstU32();
+      }
+      return std::nullopt;
     }
 };
 
