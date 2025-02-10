@@ -1,6 +1,9 @@
 
 #pragma once
 
+#include <atom/integer.hpp>
+#include <array>
+
 #include "arm/dynarec/ir/pass.hpp"
 
 namespace dual::arm::jit::ir {
@@ -10,12 +13,7 @@ class HostFlagPropagationPass final : public Pass {
     void Run(Function& function) override;
 
   private:
-    struct FlagState {
-      Value::ID n_flag{Value::invalid_id};
-      Value::ID z_flag{Value::invalid_id};
-      Value::ID c_flag{Value::invalid_id};
-      Value::ID v_flag{Value::invalid_id};
-    };
+    using FlagState = std::array<Value::ID, 4>;
 
     static void RunBasicBlock(BasicBlock& basic_block);
 };
