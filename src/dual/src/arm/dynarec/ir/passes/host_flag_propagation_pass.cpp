@@ -62,7 +62,6 @@ void HostFlagPropagationPass::RunBasicBlock(BasicBlock& basic_block) {
         const FlagState& flag_state = flag_state_map[hflag_value];
 
         Value::ID propagated_hflag_value{Value::invalid_id};
-//        bool can_propagate{true};
 
         u32 flag_bit = 0x80000000ul;
 
@@ -78,14 +77,6 @@ void HostFlagPropagationPass::RunBasicBlock(BasicBlock& basic_block) {
               propagated_hflag_value = Value::invalid_id;
               break;
             }
-//            if(flag_state[flag] != propagated_hflag_value) {
-//              if(propagated_hflag_value == Value::invalid_id) {
-//                propagated_hflag_value = flag_state[flag];
-//              } else {
-//                propagated_hflag_value = Value::invalid_id;
-//                break;
-//              }
-//            }
           }
           flag_bit >>= 1;
         }
