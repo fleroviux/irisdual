@@ -46,7 +46,7 @@ void GuestStateAccessRemovalPass::RunBasicBlock(BasicBlock& basic_block) {
       current_reg_value[reg_id] = result_value;
     } else {
       RewriteValueUseRefs(basic_block, result_value, current_reg_value[reg_id]);
-      RemoveInstruction(basic_block, instruction);
+      RemoveInstruction(basic_block, instruction); // TODO: just let dead code removal take care of this?
     }
   };
 

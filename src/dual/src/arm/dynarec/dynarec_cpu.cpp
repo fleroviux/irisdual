@@ -5,6 +5,7 @@
 #include "backend/arm64/arm64_backend.hpp"
 #include "ir/passes/guest_state_access_removal_pass.hpp"
 #include "ir/passes/host_flag_propagation_pass.hpp"
+#include "ir/passes/dead_code_removal_pass.hpp"
 #include "dynarec_cpu.hpp"
 
 namespace dual::arm {
@@ -20,6 +21,7 @@ DynarecCPU::DynarecCPU(
   m_backend = std::make_unique<jit::ARM64Backend>(m_cpu_state);
   m_ir_passes.push_back(std::make_unique<jit::ir::GuestStateAccessRemovalPass>());
   m_ir_passes.push_back(std::make_unique<jit::ir::HostFlagPropagationPass>());
+  m_ir_passes.push_back(std::make_unique<jit::ir::DeadCodeRemovalPass>());
 }
 
 void DynarecCPU::Reset() {
