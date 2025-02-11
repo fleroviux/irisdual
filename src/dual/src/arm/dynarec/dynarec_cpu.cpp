@@ -6,6 +6,7 @@
 #include "ir/passes/guest_state_access_removal_pass.hpp"
 #include "ir/passes/host_flag_propagation_pass.hpp"
 #include "ir/passes/dead_code_removal_pass.hpp"
+#include "ir/disassemble.hpp"
 #include "dynarec_cpu.hpp"
 
 namespace dual::arm {
@@ -255,6 +256,8 @@ void DynarecCPU::TestBackend() {
     ir::Emitter emitter{*bb_exit, m_tmp_memory_arena};
     emitter.EXIT();
   }
+
+  fmt::print("Original IR function (before optimization):\n{}\n", ir::disassemble(function));
 
   const auto PrintCpuState = [&]() {
     fmt::print("CPU STATE:\n");

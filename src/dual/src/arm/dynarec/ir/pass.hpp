@@ -47,6 +47,8 @@ class Pass {
         }
       }
 
+      // TODO(fleroviux): remove use_refs on any values used as inputs!
+
       if(instruction->prev != nullptr) {
         instruction->prev->next = instruction->next;
       } else {

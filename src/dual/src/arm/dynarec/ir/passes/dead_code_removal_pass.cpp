@@ -18,6 +18,7 @@ void DeadCodeRemovalPass::Run(Function& function) {
 void DeadCodeRemovalPass::RunBasicBlock(BasicBlock& basic_block) {
   Instruction* instruction = basic_block.head;
 
+  // TODO(fleroviux): repeatedly iterate over the IR until no dead code was found?
   while(instruction != nullptr) {
     // Only consider instructions without side-effects for removal
     if(IsSideEffectFree(instruction)) {
