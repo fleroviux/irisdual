@@ -30,7 +30,7 @@ struct Value : atom::NonCopyable {
   ID id;
   DataType data_type;
   Ref create_ref;
-  mutable std::vector<Ref> use_refs{};
+  mutable std::vector<Ref> use_refs{}; // TODO(fleroviux): use a linked list of arena allocated nodes?
 };
 
 template<Value::DataType data_type_>
