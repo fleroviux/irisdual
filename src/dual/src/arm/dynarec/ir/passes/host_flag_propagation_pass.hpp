@@ -3,6 +3,7 @@
 
 #include <atom/integer.hpp>
 #include <array>
+#include <vector>
 
 #include "arm/dynarec/ir/pass.hpp"
 
@@ -44,7 +45,9 @@ class HostFlagPropagationPass final : public Pass {
   private:
     using FlagState = std::array<Value::ID, 4>;
 
-    static void RunBasicBlock(BasicBlock& basic_block);
+    void RunBasicBlock(BasicBlock& basic_block);
+
+    std::vector<FlagState> m_flag_state_map{};
 };
 
 } // namespace dual::arm::jit::ir

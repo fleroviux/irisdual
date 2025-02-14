@@ -1,6 +1,4 @@
 
-#include <vector>
-
 #include "host_flag_propagation_pass.hpp"
 
 namespace dual::arm::jit::ir {
@@ -14,10 +12,9 @@ void HostFlagPropagationPass::Run(Function& function) {
 }
 
 void HostFlagPropagationPass::RunBasicBlock(BasicBlock& basic_block) {
-  std::vector<FlagState> flag_state_map{};
-  flag_state_map.resize(basic_block.values.size());
+  m_flag_state_map.resize(basic_block.values.size());
 
-  for(auto& flag_state : flag_state_map) {
+  for(auto& flag_state : m_flag_state_map) {
     flag_state.fill(Value::invalid_id);
   }
 
@@ -33,11 +30,11 @@ void HostFlagPropagationPass::RunBasicBlock(BasicBlock& basic_block) {
         const Value::ID hflag_value = instruction->GetArg(0u).AsValue();
         const Value::ID nzcv_value = instruction->GetOut(0u);
         for(const int flag : {0, 1, 2, 3}) {
-          const Value::ID propagated_flag = flag_state_map[hflag_value][flag];
+          const Value::ID propagated_flag = m_flag_state_map[hflag_value][flag];
           if(propagated_flag != Value::invalid_id) {
-            flag_state_map[nzcv_value][flag] = propagated_flag;
+            m_flag_state_map[nzcv_value][flag] = propagated_flag;
           } else {
-            flag_state_map[nzcv_value][flag] = hflag_value;
+            m_flag_state_map[nzcv_value][flag] = hflag_value;
           }
         }
         break;
@@ -48,7 +45,7 @@ void HostFlagPropagationPass::RunBasicBlock(BasicBlock& basic_block) {
         // i.e. its flags come from the same host flags value as the NZCV value.
         const Value::ID nzcv_value = instruction->GetArg(0u).AsValue();
         const Value::ID hflag_value = instruction->GetOut(0u);
-        flag_state_map[hflag_value] = flag_state_map[nzcv_value];
+        m_flag_state_map[hflag_value] = m_flag_state_map[nzcv_value];
         break;
       }
       case Instruction::Type::BR_IF: {
@@ -59,7 +56,7 @@ void HostFlagPropagationPass::RunBasicBlock(BasicBlock& basic_block) {
         // use the original hflags value.
         const u32 flags_used = GetConditionFlagDeps(instruction->GetArg(0u).AsCondition());
         const Value::ID hflag_value = instruction->GetArg(1u).AsValue();
-        const FlagState& flag_state = flag_state_map[hflag_value];
+        const FlagState& flag_state = m_flag_state_map[hflag_value];
 
         Value::ID propagated_hflag_value{Value::invalid_id};
 
@@ -95,9 +92,9 @@ void HostFlagPropagationPass::RunBasicBlock(BasicBlock& basic_block) {
         if(mask_const_maybe.has_value()) {
           const u32 mask = mask_const_maybe.value();
 
-          const FlagState& lhs_flag_state = flag_state_map[instruction->GetArg(0u).AsValue()];
-          const FlagState& rhs_flag_state = flag_state_map[instruction->GetArg(1u).AsValue()];
-          FlagState& result_flag_state = flag_state_map[instruction->GetOut(0u)];
+          const FlagState& lhs_flag_state = m_flag_state_map[instruction->GetArg(0u).AsValue()];
+          const FlagState& rhs_flag_state = m_flag_state_map[instruction->GetArg(1u).AsValue()];
+          FlagState& result_flag_state = m_flag_state_map[instruction->GetOut(0u)];
 
           u32 flag_bit = 0x80000000ul;
 
