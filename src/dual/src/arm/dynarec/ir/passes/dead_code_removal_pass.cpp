@@ -3,8 +3,6 @@
 
 #include "dead_code_removal_pass.hpp"
 
-#include "arm/dynarec/ir/disassemble.hpp"
-
 namespace dual::arm::jit::ir {
 
 static bool IsSideEffectFree(Instruction* instruction);
@@ -16,9 +14,8 @@ void DeadCodeRemovalPass::Run(Function& function) {
 }
 
 void DeadCodeRemovalPass::RunBasicBlock(BasicBlock& basic_block) {
-  Instruction* instruction = basic_block.head;
+  Instruction* instruction = basic_block.tail;
 
-  // TODO(fleroviux): repeatedly iterate over the IR until no dead code was found?
   while(instruction != nullptr) {
     // Only consider instructions without side-effects for removal
     if(IsSideEffectFree(instruction)) {
@@ -34,7 +31,7 @@ void DeadCodeRemovalPass::RunBasicBlock(BasicBlock& basic_block) {
       }
     }
 
-    instruction = instruction->next;
+    instruction = instruction->prev;
   }
 }
 
