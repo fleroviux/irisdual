@@ -3,6 +3,7 @@
 
 #include <atom/integer.hpp>
 #include <atom/panic.hpp>
+#include <algorithm>
 #include <optional>
 
 #include "basic_block.hpp"
@@ -38,17 +39,35 @@ class Pass {
     }
 
     static void RemoveInstruction(BasicBlock& basic_block, Instruction* instruction) {
-      // Ensure that the instruction has no uses before it is deleted.
-      // TODO: this is somewhat inefficient, only do this in debug?
+      // Remove create ref from any values created by this instruction and ensure that the values have no uses.
       for(size_t out_slot = 0u; out_slot < instruction->out_slot_count; out_slot++) {
         Value* value = basic_block.values[instruction->out_slots[out_slot]];
+
+        value->create_ref.instruction = nullptr;
         if(!value->use_refs.empty()) {
           ATOM_PANIC("IR instruction cannot be removed because it has active uses");
         }
       }
 
-      // TODO(fleroviux): remove use_refs on any values used as inputs!
+      // Remove use refs from any values read by this instruction
+      for(size_t arg_slot = 0u; arg_slot < instruction->arg_slot_count; arg_slot++) {
+        const Input& input = instruction->arg_slots[arg_slot];
+        if(input.Is(Input::Type::Value)) {
+          std::vector<Ref>& use_refs = basic_block.values[input.AsValue()]->use_refs;
 
+          const auto match = std::ranges::find_if(use_refs, [&](const Ref& ref) {
+            return ref.instruction == instruction && ref.slot == arg_slot;
+          });
+          if(match != use_refs.end()) {
+            use_refs.erase(match);
+          }
+        }
+      }
+
+      UnlinkInstruction(basic_block, instruction);
+    }
+
+    static void UnlinkInstruction(BasicBlock& basic_block, Instruction* instruction) {
       if(instruction->prev != nullptr) {
         instruction->prev->next = instruction->next;
       } else {
