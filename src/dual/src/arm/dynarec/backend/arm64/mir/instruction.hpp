@@ -10,7 +10,8 @@ namespace dual::arm::jit::a64mir {
 
 struct Instruction {
   enum class Type : u16 {
-    LDGPR
+    LDR,
+    STR,
   };
 
   static constexpr size_t max_arg_slots = 2u;

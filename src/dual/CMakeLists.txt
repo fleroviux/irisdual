@@ -59,6 +59,7 @@ set(SOURCES
 )
 
 set(HEADERS
+  src/arm/dynarec/backend/arm64/mir/address.hpp
   src/arm/dynarec/backend/arm64/mir/basic_block.hpp
   src/arm/dynarec/backend/arm64/mir/emitter.hpp
   src/arm/dynarec/backend/arm64/mir/instruction.hpp
