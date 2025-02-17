@@ -47,8 +47,7 @@ void ARM64Backend::Execute(const ir::Function& function, bool debug) {
   for(size_t bb_index = 0u; bb_index < function.basic_blocks.size(); bb_index++) {
     const ir::BasicBlock& basic_block = *function.basic_blocks[bb_index];
 
-    // Lowering test
-    LowerToMIR(basic_block);
+    m_lowering_pass.Run(basic_block, m_memory_arena);
 
     // here comes the poor girl's register allocator!
     std::vector<ARM64ValueLocation> location_map{};
@@ -267,6 +266,8 @@ void ARM64Backend::Execute(const ir::Function& function, bool debug) {
   }
 
   ((void (*)())code_begin)();
+
+  m_memory_arena.Reset();
 }
 
 static void DisasA64(const void* code_begin, const void* code_end) {
