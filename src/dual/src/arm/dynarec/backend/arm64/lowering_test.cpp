@@ -29,7 +29,9 @@ void ARM64Backend::LowerToMIR(const ir::BasicBlock& basic_block) {
   mir_emitter.LDR(X0, a64mir::AddressOffset{0u});
   mir_emitter.LDR(X0, a64mir::AddressOffset{0u}, a64mir::Address::Mode::PostIndexed);
   mir_emitter.LDR(X0, a64mir::AddressOffset{X1});
-  mir_emitter.LDR(X0, a64mir::AddressOffset{X1, oaknut::IndexExt::UXTW, 3});
+  const a64mir::VReg& vreg = mir_emitter.LDR(X0, a64mir::AddressOffset{X1, oaknut::IndexExt::UXTW, 3});
+
+  mir_emitter.Test(vreg);
 
   // Disassembly test
   a64mir::Instruction* instruction = mir_basic_block->head;

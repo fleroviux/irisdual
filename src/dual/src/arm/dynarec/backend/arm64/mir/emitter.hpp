@@ -16,20 +16,19 @@ class Emitter {
         , m_arena{arena} {
     }
 
-//    void LDGPR(GPR gpr, Mode cpu_mode) {
-//      Instruction& instruction = AppendInstruction(Type::LDGPR, 2u, 0u);
-//      instruction.arg_slots[0] = Operand{gpr};
-//      instruction.arg_slots[1] = Operand{cpu_mode};
-//
-//      const VReg& result = CreateVReg();
-//      instruction.out_slots[0] = Operand{result};
-//    }
-
     template<typename... AddressArgs>
-    void LDR(AddressArgs&&... args) {
-      Instruction& instruction = AppendInstruction(Type::LDR, 1u, 0u);
+    const VReg& LDR(AddressArgs&&... args) {
+      Instruction& instruction = AppendInstruction(Type::LDR, 1u, 1u);
       instruction.arg_slots[0] = Operand{Address{std::forward<AddressArgs>(args)...}};
-      // ...
+
+      const VReg& result = CreateVReg();
+      instruction.out_slots[0] = Operand{result};
+      return result;
+    }
+
+    void Test(const VReg& vreg) {
+      Instruction& instruction = AppendInstruction(Type::STR, 1u, 0u);
+      instruction.arg_slots[0] = Operand{vreg};
     }
 
   private:
