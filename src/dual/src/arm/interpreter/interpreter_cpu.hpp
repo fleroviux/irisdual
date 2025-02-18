@@ -77,13 +77,8 @@ namespace dual::arm {
       void SetGPR(GPR reg, u32 value) override {
         m_state.reg[(int)reg] = value;
 
-        // TODO(fleroviux): this behavior differs from the JITs
         if(reg == GPR::PC) {
-          if(m_state.cpsr.thumb) {
-            ReloadPipeline16();
-          } else {
-            ReloadPipeline32();
-          }
+          ReloadPipelineOnSetR15OrCPSR();
         }
       }
 
@@ -99,6 +94,7 @@ namespace dual::arm {
       void SetCPSR(PSR value) override {
         SwitchMode((Mode)value.mode);
         m_state.cpsr = value;
+        ReloadPipelineOnSetR15OrCPSR();
       }
 
       void SetSPSR(Mode mode, PSR value) override {
@@ -146,6 +142,7 @@ namespace dual::arm {
       void SignalIRQ();
       void ReloadPipeline16();
       void ReloadPipeline32();
+      void ReloadPipelineOnSetR15OrCPSR();
       void BuildConditionTable();
       void SwitchMode(Mode new_mode);
 
