@@ -186,7 +186,7 @@ namespace dual::nds {
     m_arm9.cpu->SetGPR(arm::CPU::GPR::SP, Mode::System,     0x03002F7Cu);
     m_arm9.cpu->SetGPR(arm::CPU::GPR::SP, Mode::IRQ,        0x03003F80u);
     m_arm9.cpu->SetGPR(arm::CPU::GPR::SP, Mode::Supervisor, 0x03003FC0u);
-    m_arm9.cpu->SetGPR(arm::CPU::GPR::PC, header.arm9.entrypoint);
+    m_arm9.cpu->SetGPR(arm::CPU::GPR::PC, header.arm9.entrypoint + 8u);
     m_arm9.cpu->SetCPSR(static_cast<u32>(Mode::System));
 
     m_arm9.cp15->DirectBoot();
@@ -194,7 +194,7 @@ namespace dual::nds {
     m_arm7.cpu->SetGPR(arm::CPU::GPR::SP, Mode::System,     0x0380FD80u);
     m_arm7.cpu->SetGPR(arm::CPU::GPR::SP, Mode::IRQ,        0x0380FF80u);
     m_arm7.cpu->SetGPR(arm::CPU::GPR::SP, Mode::Supervisor, 0x0380FFC0u);
-    m_arm7.cpu->SetGPR(arm::CPU::GPR::PC, header.arm7.entrypoint);
+    m_arm7.cpu->SetGPR(arm::CPU::GPR::PC, header.arm7.entrypoint + 8u);
     m_arm7.cpu->SetCPSR(static_cast<u32>(Mode::System));
 
     /**

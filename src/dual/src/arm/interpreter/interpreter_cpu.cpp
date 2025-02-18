@@ -113,14 +113,24 @@ namespace dual::arm {
 
   void InterpreterCPU::ReloadPipeline32() {
     m_opcode[0] = ReadWordCode(m_state.r15);
-    m_opcode[1] = ReadWordCode(m_state.r15 + 4);
-    m_state.r15 += 8;
+    m_opcode[1] = ReadWordCode(m_state.r15 + 4u);
+    m_state.r15 += 8u;
   }
 
   void InterpreterCPU::ReloadPipeline16() {
     m_opcode[0] = ReadHalfCode(m_state.r15);
-    m_opcode[1] = ReadHalfCode(m_state.r15 + 2);
-    m_state.r15 += 4;
+    m_opcode[1] = ReadHalfCode(m_state.r15 + 2u);
+    m_state.r15 += 4u;
+  }
+
+  void InterpreterCPU::ReloadPipelineOnSetR15OrCPSR() {
+    if(m_state.cpsr.thumb) {
+      m_opcode[0] = ReadHalfCode(m_state.r15 - 4u);
+      m_opcode[1] = ReadHalfCode(m_state.r15 - 2u);
+    } else {
+      m_opcode[0] = ReadWordCode(m_state.r15 - 8u);
+      m_opcode[1] = ReadWordCode(m_state.r15 - 4u);
+    }
   }
 
   void InterpreterCPU::BuildConditionTable() {
