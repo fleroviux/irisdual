@@ -59,14 +59,10 @@ namespace dual::arm {
       }
 
       u32 GetGPR(GPR reg, Mode mode) const override {
-        if((int)reg < 8 || reg == GPR::PC || mode == (Mode)m_state.cpsr.mode) {
+        const int max_shared_gpr = mode == Mode::FIQ ? 8 : 13;
+        if((int)reg < max_shared_gpr || reg == GPR::PC || GetRegisterBankByMode(mode) == GetRegisterBankByMode((Mode)m_state.cpsr.mode)) {
           return m_state.reg[(int)reg];
         }
-
-        if((int)reg < 13 && mode != Mode::FIQ) {
-          return m_state.bank[(int)Bank::None][(int)reg - 8];
-        }
-
         return m_state.bank[(int)GetRegisterBankByMode(mode)][(int)reg - 8];
       }
 
@@ -81,6 +77,7 @@ namespace dual::arm {
       void SetGPR(GPR reg, u32 value) override {
         m_state.reg[(int)reg] = value;
 
+        // TODO(fleroviux): this behavior differs from the JITs
         if(reg == GPR::PC) {
           if(m_state.cpsr.thumb) {
             ReloadPipeline16();
@@ -91,10 +88,9 @@ namespace dual::arm {
       }
 
       void SetGPR(GPR reg, Mode mode, u32 value) override {
-        if((int)reg < 8 || reg == GPR::PC || mode == (Mode)m_state.cpsr.mode) {
+        const int max_shared_gpr = mode == Mode::FIQ ? 8 : 13;
+        if((int)reg < max_shared_gpr || reg == GPR::PC || GetRegisterBankByMode(mode) == GetRegisterBankByMode((Mode)m_state.cpsr.mode)) {
           SetGPR(reg, value);
-        } else if((int)reg < 13 && mode != Mode::FIQ) {
-          m_state.bank[(int)Bank::None][(int)reg - 8] = value;
         } else {
           m_state.bank[(int)GetRegisterBankByMode(mode)][(int)reg - 8] = value;
         }
