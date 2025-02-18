@@ -3,6 +3,8 @@
 
 #include "translator_a32.hpp"
 
+namespace bit = atom::bit;
+
 namespace dual::arm::jit {
 
 TranslatorA32::TranslatorA32() {
@@ -22,8 +24,41 @@ TranslatorA32::Code TranslatorA32::Translate(u32 r15, CPU::Mode cpu_mode, u32 in
     return Code::Fallback;
   }
 
-  const int hash = (instruction >> 16) & 0xFF0u | (instruction >> 4) & 0xFu;
-  return m_handler_lut[hash](*this, instruction);
+  const size_t hash = (instruction >> 16) & 0xFF0u | (instruction >> 4) & 0xFu;
+  return m_handler_lut[hash](*this, r15, cpu_mode, instruction, emitter);
+}
+
+TranslatorA32::Code TranslatorA32::Translate_MSR_reg(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter) {
+  const bool use_spsr = bit::get_bit(instruction, 22);
+
+  // TODO(fleroviux): mask out any bits which aren't writable (e.g. on ARM7TDMI)
+  u32 fsxc_mask = 0u;
+  if(bit::get_bit(instruction, 16)) fsxc_mask |= 0x000000FFu;
+  if(bit::get_bit(instruction, 17)) fsxc_mask |= 0x0000FF00u;
+  if(bit::get_bit(instruction, 18)) fsxc_mask |= 0x00FF0000u;
+  if(bit::get_bit(instruction, 19)) fsxc_mask |= 0xFF000000u;
+
+  const ir::U32Value& reg_value = emitter.LDGPR(bit::get_field<u32, ir::GPR>(instruction, 0u, 4u), cpu_mode);
+
+  if(use_spsr) {
+    // TODO(fleroviux): Bit 4 of PSR registers is forced to one on ARM7TDMI (what about ARM9 and ARM11?)
+    const ir::U32Value& psr_old = emitter.LDSPSR(cpu_mode);
+    const ir::U32Value& psr_new = emitter.BITCMB(psr_old, reg_value, fsxc_mask);
+    emitter.STSPSR(cpu_mode, psr_new);
+  } else {
+    // In non-privileged mode (user mode): only condition code bits of CPSR can be changed, control bits can't.
+    if(cpu_mode == ir::Mode::User) {
+      fsxc_mask &= 0xFF000000u;
+    }
+
+    // TODO(fleroviux): Bit 4 of PSR registers is forced to one on ARM7TDMI (what about ARM9 and ARM11?)
+    const ir::U32Value& psr_old = emitter.LDCPSR();
+    const ir::U32Value& psr_new = emitter.BITCMB(psr_old, reg_value, fsxc_mask);
+    emitter.STCPSR(psr_new);
+  }
+
+  emitter.STGPR(ir::GPR::PC, cpu_mode, emitter.LDCONST(r15 + 4u));
+  return Code::Success;
 }
 
 void TranslatorA32::BuildLUT() {
@@ -34,14 +69,16 @@ void TranslatorA32::BuildLUT() {
 }
 
 TranslatorA32::HandlerFn TranslatorA32::GetInstructionHandler(u32 instruction) {
-  namespace bit = atom::bit;
+  const auto MSR_reg = [](TranslatorA32& self, u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter) {
+    return self.Translate_MSR_reg(r15, cpu_mode, instruction, emitter);
+  };
 
-  const auto Unimplemented = [](TranslatorA32& self, u32 instruction) {
+  const auto Unimplemented = [](TranslatorA32& self, u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter) {
     return Code::Fallback;
   };
 
   if(bit::match_pattern<"cccc00010x00xxxxxxxxxxxx0000xxxx">(instruction)) return Unimplemented; // Move status register to register
-  if(bit::match_pattern<"cccc00010x10xxxxxxxxxxxx0000xxxx">(instruction)) return Unimplemented; // Move register to status register
+  if(bit::match_pattern<"cccc00010x10xxxxxxxxxxxx0000xxxx">(instruction)) return MSR_reg;       // Move register to status register
   if(bit::match_pattern<"cccc00010xx0xxxxxxxxxxxx1xx0xxxx">(instruction)) return Unimplemented; // Enhanced DSP multiplies
   if(bit::match_pattern<"cccc000xxxxxxxxxxxxxxxxxxxx0xxxx">(instruction)) return Unimplemented; // Data Processing (Shift-by-Immediate)
   if(bit::match_pattern<"cccc00010010xxxxxxxxxxxx0001xxxx">(instruction)) return Unimplemented; // Branch/exchange instruction set

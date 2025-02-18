@@ -21,8 +21,10 @@ class TranslatorA32 {
 
   private:
 
+    Code Translate_MSR_reg(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter);
+
     // TODO: make some of this stuff static and constexpr?
-    using HandlerFn = Code (*)(TranslatorA32& self, u32 instruction);
+    using HandlerFn = Code (*)(TranslatorA32& self, u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter);
     void BuildLUT();
     HandlerFn GetInstructionHandler(u32 instruction);
     std::array<HandlerFn, 4096u> m_handler_lut{};

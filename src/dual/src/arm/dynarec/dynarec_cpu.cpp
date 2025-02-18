@@ -101,13 +101,7 @@ void DynarecCPU::SetSPSR(Mode mode, PSR value) {
 void DynarecCPU::Run(int cycles) {
   const auto CopyB2A_Fast = [this]<class A, class B>(A& a, B& b) {
     a.SetCPSR(b.GetCPSR());
-
-    u32 pc = b.GetGPR(GPR::R15);
-    if(std::is_same_v<A, InterpreterCPU>) {
-      // Well, this is slightly painful. Fix this properly.
-      pc -= b.GetCPSR().thumb ? 4 : 8;
-    }
-    a.SetGPR(GPR::R15, pc);
+    a.SetGPR(GPR::PC, b.GetGPR(GPR::PC));
   };
 
   const auto CopyB2A_Slow = [this]<class A, class B>(A& a, B& b) {
