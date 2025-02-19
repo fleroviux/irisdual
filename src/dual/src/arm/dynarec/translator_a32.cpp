@@ -1,5 +1,6 @@
 
 #include <atom/bit.hpp>
+#include <atom/panic.hpp>
 
 #include "translator_a32.hpp"
 
@@ -31,6 +32,10 @@ TranslatorA32::Code TranslatorA32::Translate(u32 r15, CPU::Mode cpu_mode, u32 in
 TranslatorA32::Code TranslatorA32::Translate_MRS(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter) {
   const bool use_spsr = bit::get_bit(instruction, 22);
   const ir::GPR reg_dst = bit::get_field<u32, ir::GPR>(instruction, 12u, 4u);
+
+  if(reg_dst == ir::GPR::PC) {
+    ATOM_PANIC("illegal write to R15 in A32 MRS");
+  }
 
   if(use_spsr) {
     emitter.STGPR(reg_dst, cpu_mode, emitter.LDSPSR(cpu_mode));
