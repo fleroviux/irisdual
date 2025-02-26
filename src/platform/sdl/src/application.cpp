@@ -282,7 +282,7 @@ void Application::HandleEvent(const SDL_Event& event) {
       case SDLK_DOWN:  update_key(dual::nds::Key::Down);  break;
       case SDLK_LEFT:  update_key(dual::nds::Key::Left);  break;
       case SDLK_RIGHT: update_key(dual::nds::Key::Right); break;
-      case SDLK_F11: if(!pressed) m_emu_thread.Reset(); break;
+      case SDLK_F10: if(!pressed) m_emu_thread.Reset(); break;
       case SDLK_F12: if(!pressed) m_emu_thread.DirectBoot(); break;
       case SDLK_SPACE: m_emu_thread.SetFastForward(pressed); break;
     }

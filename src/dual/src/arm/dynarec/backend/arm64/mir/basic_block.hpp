@@ -3,9 +3,6 @@
 
 #include <atom/integer.hpp>
 #include <atom/non_copyable.hpp>
-#include <vector>
-
-#include "vreg.hpp"
 
 namespace dual::arm::jit::a64mir {
 
@@ -19,7 +16,6 @@ struct BasicBlock : atom::NonCopyable {
   ID id;
   Instruction* head{};
   Instruction* tail{};
-  std::vector<VReg*> vregs{};
 };
 
 } // namespace dual::arm::jit::a64mir

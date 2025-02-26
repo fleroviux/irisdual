@@ -59,8 +59,14 @@ static std::string disassemble_operand(const Operand& operand) {
     case Operand::Type::Null: {
       return "(null)";
     }
-    case Operand::Type::VReg: {
-      return fmt::format("v{}", operand.AsVReg());
+    case Operand::Type::HostReg: {
+      // TODO: move this into a function or something
+      HostReg host_reg = operand.AsHostReg();
+      switch(host_reg.GetType()) {
+        case HostReg::Type::WReg: return fmt::format("W{}", host_reg.Index());
+        case HostReg::Type::XReg: return fmt::format("X{}", host_reg.Index());
+        default: ATOM_PANIC("unhandled host reg type: {}", (int)host_reg.GetType());
+      }
     }
     case Operand::Type::Address: {
       // TODO: move this into a function or something

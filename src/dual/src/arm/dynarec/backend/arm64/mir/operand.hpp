@@ -5,7 +5,7 @@
 #include <dual/arm/cpu.hpp>
 
 #include "address.hpp"
-#include "vreg.hpp"
+#include "host_reg.hpp"
 
 namespace dual::arm::jit::a64mir {
 
@@ -13,20 +13,20 @@ class Operand {
   public:
     enum class Type {
       Null,
-      VReg,
+      HostReg,
       Address
     };
 
     Operand() : m_type{Type::Null} {}
     explicit Operand(Address address) : m_type{Type::Address}, m_address{address} {}
-    explicit Operand(const VReg& vreg) : m_type{Type::VReg}, m_vreg{vreg.id} {}
+    explicit Operand(HostReg host_reg) : m_type{Type::HostReg}, m_host_reg{host_reg} {}
 
     [[nodiscard]] Type GetType() const { return m_type; }
     [[nodiscard]] bool Is(Type type) const { return m_type == type; }
 
-    [[nodiscard]] VReg::ID AsVReg() const {
-      DebugCheckType(Type::VReg);
-      return m_vreg;
+    [[nodiscard]] HostReg AsHostReg() const {
+      DebugCheckType(Type::HostReg);
+      return m_host_reg;
     }
 
     [[nodiscard]] const Address& AsAddress() const {
@@ -45,7 +45,7 @@ class Operand {
 
     Type m_type;
     union {
-      VReg::ID m_vreg;
+      HostReg m_host_reg;
       Address m_address;
     };
 };

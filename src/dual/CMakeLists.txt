@@ -64,6 +64,7 @@ set(HEADERS
   src/arm/dynarec/backend/arm64/mir/basic_block.hpp
   src/arm/dynarec/backend/arm64/mir/disassemble.hpp
   src/arm/dynarec/backend/arm64/mir/emitter.hpp
+  src/arm/dynarec/backend/arm64/mir/host_reg.hpp
   src/arm/dynarec/backend/arm64/mir/instruction.hpp
   src/arm/dynarec/backend/arm64/mir/operand.hpp
   src/arm/dynarec/backend/arm64/mir/vreg.hpp

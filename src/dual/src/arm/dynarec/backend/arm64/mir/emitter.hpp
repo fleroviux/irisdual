@@ -16,21 +16,6 @@ class Emitter {
         , m_arena{arena} {
     }
 
-    template<typename... AddressArgs>
-    const VReg& LDR(AddressArgs&&... args) {
-      Instruction& instruction = AppendInstruction(Type::LDR, 1u, 1u);
-      instruction.arg_slots[0] = Operand{Address{std::forward<AddressArgs>(args)...}};
-
-      const VReg& result = CreateVReg();
-      instruction.out_slots[0] = Operand{result};
-      return result;
-    }
-
-    void Test(const VReg& vreg) {
-      Instruction& instruction = AppendInstruction(Type::STR, 1u, 0u);
-      instruction.arg_slots[0] = Operand{vreg};
-    }
-
   private:
     using Type = Instruction::Type;
 
@@ -51,21 +36,6 @@ class Emitter {
       }
 
       return *instruction;
-    }
-
-    // @todo: move this to basic block?
-    const VReg& CreateVReg() {
-      const auto vreg = (VReg*)m_arena.Allocate(sizeof(VReg));
-      if(vreg == nullptr) {
-        ATOM_PANIC("ran out of memory arena space");
-      }
-      const VReg::ID id = m_basic_block.vregs.size();
-      if(id == std::numeric_limits<VReg::ID>::max()) {
-        ATOM_PANIC("exceeded maximum number of values per basic block limit");
-      }
-      new(vreg) VReg{id};
-      m_basic_block.vregs.push_back(vreg);
-      return *vreg;
     }
 
     BasicBlock& m_basic_block;
