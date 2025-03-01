@@ -53,10 +53,20 @@ TranslatorA32::Code TranslatorA32::Translate_DataProcessing_imm(u32 r15, ir::Mod
   const ir::U32Value& lhs_value = emitter.LDGPR((ir::GPR)reg_lhs, cpu_mode);
   const ir::U32Value& rhs_value = emitter.LDCONST(imm_rhs);
 
+  const ir::HostFlagsValue* hflag_value;
+
   switch(opcode) {
+    case DataOp::AND: {
+      if(set_flags) {
+        emitter.STGPR(reg_dst, cpu_mode, emitter.AND(lhs_value, rhs_value, &hflag_value));
+        UpdateFlags(emitter, Flags::NZ, *hflag_value);
+      } else {
+        emitter.STGPR(reg_dst, cpu_mode, emitter.AND(lhs_value, rhs_value));
+      }
+      break;
+    }
     case DataOp::SUB: {
       if(set_flags) {
-        const ir::HostFlagsValue* hflag_value;
         emitter.STGPR(reg_dst, cpu_mode, emitter.SUB(lhs_value, rhs_value, &hflag_value));
         UpdateFlags(emitter, Flags::NZCV, *hflag_value);
       } else {
@@ -64,9 +74,17 @@ TranslatorA32::Code TranslatorA32::Translate_DataProcessing_imm(u32 r15, ir::Mod
       }
       break;
     }
+    case DataOp::RSB: {
+      if(set_flags) {
+        emitter.STGPR(reg_dst, cpu_mode, emitter.SUB(rhs_value, lhs_value, &hflag_value));
+        UpdateFlags(emitter, Flags::NZCV, *hflag_value);
+      } else {
+        emitter.STGPR(reg_dst, cpu_mode, emitter.SUB(rhs_value, lhs_value));
+      }
+      break;
+    }
     case DataOp::ADD: {
       if(set_flags) {
-        const ir::HostFlagsValue* hflag_value;
         emitter.STGPR(reg_dst, cpu_mode, emitter.ADD(lhs_value, rhs_value, &hflag_value));
         UpdateFlags(emitter, Flags::NZCV, *hflag_value);
       } else {
@@ -74,7 +92,39 @@ TranslatorA32::Code TranslatorA32::Translate_DataProcessing_imm(u32 r15, ir::Mod
       }
       break;
     }
+    case DataOp::SBC: {
+      const ir::HostFlagsValue& carry_in = emitter.CVT_NZCV_HFLAG(emitter.LDCPSR());
+      if(set_flags) {
+        emitter.STGPR(reg_dst, cpu_mode, emitter.SBC(lhs_value, rhs_value, carry_in, &hflag_value));
+        UpdateFlags(emitter, Flags::NZCV, *hflag_value);
+      } else {
+        emitter.STGPR(reg_dst, cpu_mode, emitter.SBC(lhs_value, rhs_value, carry_in));
+      }
+      break;
+    }
+    case DataOp::RSC: {
+      const ir::HostFlagsValue& carry_in = emitter.CVT_NZCV_HFLAG(emitter.LDCPSR());
+      if(set_flags) {
+        emitter.STGPR(reg_dst, cpu_mode, emitter.SBC(rhs_value, lhs_value, carry_in, &hflag_value));
+        UpdateFlags(emitter, Flags::NZCV, *hflag_value);
+      } else {
+        emitter.STGPR(reg_dst, cpu_mode, emitter.SBC(rhs_value, lhs_value, carry_in));
+      }
+      break;
+    }
+    case DataOp::TST: {
+      emitter.AND(lhs_value, rhs_value, &hflag_value);
+      UpdateFlags(emitter, Flags::NZ, *hflag_value);
+      break;
+    }
+    case DataOp::CMP: {
+      const ir::HostFlagsValue* hflag_value;
+      emitter.SUB(lhs_value, rhs_value, &hflag_value);
+      UpdateFlags(emitter, Flags::NZCV, *hflag_value);
+      break;
+    }
     default: {
+      fmt::print("aaa {} {}\n", (int)opcode, set_flags);
       return Code::Fallback;
     }
   }

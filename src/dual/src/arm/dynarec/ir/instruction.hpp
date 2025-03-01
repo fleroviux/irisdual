@@ -42,6 +42,8 @@ struct Instruction {
     // Data Processing
     ADD,
     SUB,
+    SBC,
+    AND,
 
     // Other
     BITCMB

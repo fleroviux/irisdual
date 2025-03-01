@@ -96,6 +96,14 @@ class Emitter {
       return EmitBinaryALU(Type::SUB, lhs, rhs, hflags_out);
     }
 
+    const U32Value& SBC(const U32Value& lhs, const U32Value& rhs, const HostFlagsValue& carry_in, const HostFlagsValue** hflags_out = nullptr) {
+      return EmitBinaryALUWithCarry(Type::SBC, lhs, rhs, carry_in, hflags_out);
+    }
+
+    const U32Value& AND(const U32Value& lhs, const U32Value& rhs, const HostFlagsValue** hflags_out = nullptr) {
+      return EmitBinaryALU(Type::AND, lhs, rhs, hflags_out);
+    }
+
     const U32Value& BITCMB(const U32Value& lhs, const U32Value& rhs, const U32Value& mask) {
       return std::get<0>(Emit<U32Value>(Type::BITCMB, 0u, lhs, rhs, mask));
     }
