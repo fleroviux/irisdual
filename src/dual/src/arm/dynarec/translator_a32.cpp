@@ -131,37 +131,45 @@ void TranslatorA32::BuildLUT() {
 }
 
 TranslatorA32::HandlerFn TranslatorA32::GetInstructionHandler(u32 instruction) {
-  if(bit::match_pattern<"cccc00010x00xxxxxxxxxxxx0000xxxx">(instruction)) return &TranslatorA32::Translate_MRS;           // Move status register to register
-  if(bit::match_pattern<"cccc00010x10xxxxxxxxxxxx0000xxxx">(instruction)) return &TranslatorA32::Translate_MSR_reg;       // Move register to status register
-  if(bit::match_pattern<"cccc00010xx0xxxxxxxxxxxx1xx0xxxx">(instruction)) return &TranslatorA32::Translate_Unimplemented; // Enhanced DSP multiplies
-  if(bit::match_pattern<"cccc000xxxxxxxxxxxxxxxxxxxx0xxxx">(instruction)) return &TranslatorA32::Translate_Unimplemented; // Data Processing (Shift-by-Immediate)
-  if(bit::match_pattern<"cccc00010010xxxxxxxxxxxx0001xxxx">(instruction)) return &TranslatorA32::Translate_Unimplemented; // Branch/exchange instruction set
-  if(bit::match_pattern<"cccc00010110xxxxxxxxxxxx0001xxxx">(instruction)) return &TranslatorA32::Translate_Unimplemented; // Count leading zeros
-  if(bit::match_pattern<"cccc00010010xxxxxxxxxxxx0011xxxx">(instruction)) return &TranslatorA32::Translate_Unimplemented; // Branch and link/exchange instruction set
-  if(bit::match_pattern<"cccc00010xx0xxxxxxxxxxxx0101xxxx">(instruction)) return &TranslatorA32::Translate_Unimplemented; // Enhanced DSP add/subtracts
-  if(bit::match_pattern<"cccc00010010xxxxxxxxxxxx0111xxxx">(instruction)) return &TranslatorA32::Translate_Unimplemented; // Software breakpoint
-  if(bit::match_pattern<"cccc000xxxxxxxxxxxxxxxxx0xx1xxxx">(instruction)) return &TranslatorA32::Translate_Unimplemented; // Data Processing (Shift-by-Register)
-  if(bit::match_pattern<"cccc000000xxxxxxxxxxxxxx1001xxxx">(instruction)) return &TranslatorA32::Translate_Unimplemented; // Multiply (accumulate)
-  if(bit::match_pattern<"cccc00001xxxxxxxxxxxxxxx1001xxxx">(instruction)) return &TranslatorA32::Translate_Unimplemented; // Multiply (accumulate) long
-  if(bit::match_pattern<"cccc00010x00xxxxxxxxxxxx1001xxxx">(instruction)) return &TranslatorA32::Translate_Unimplemented;
-  if(bit::match_pattern<"cccc000xx0xxxxxxxxxxxxxx1011xxxx">(instruction)) return &TranslatorA32::Translate_Unimplemented; // Load/store halfword register offset
-  if(bit::match_pattern<"cccc000xx1xxxxxxxxxxxxxx1011xxxx">(instruction)) return &TranslatorA32::Translate_Unimplemented; // Load/store halfword immediate offset
-  if(bit::match_pattern<"cccc000xx0x0xxxxxxxxxxxx11x1xxxx">(instruction)) return &TranslatorA32::Translate_Unimplemented; // Load/store two words register offset
-  if(bit::match_pattern<"cccc000xx0x1xxxxxxxxxxxx11x1xxxx">(instruction)) return &TranslatorA32::Translate_Unimplemented; // Load signed halfword/byte register offset
-  if(bit::match_pattern<"cccc000xx1x0xxxxxxxxxxxx11x1xxxx">(instruction)) return &TranslatorA32::Translate_Unimplemented; // Load/store two words immediate offset
-  if(bit::match_pattern<"cccc000xx1x1xxxxxxxxxxxx11x1xxxx">(instruction)) return &TranslatorA32::Translate_Unimplemented; // Load signed halfword/byte register offset
-  if(bit::match_pattern<"cccc00110x00xxxxxxxxxxxxxxxxxxxx">(instruction)) return &TranslatorA32::Translate_Unimplemented;
-  if(bit::match_pattern<"cccc00110x10xxxxxxxxxxxxxxxxxxxx">(instruction)) return &TranslatorA32::Translate_MSR_imm;       // Move immediate to status register
-  if(bit::match_pattern<"cccc001xxxxxxxxxxxxxxxxxxxxxxxxx">(instruction)) return &TranslatorA32::Translate_Unimplemented; // Data Processing (Immediate)
-  if(bit::match_pattern<"cccc010xxxxxxxxxxxxxxxxxxxxxxxxx">(instruction)) return &TranslatorA32::Translate_Unimplemented; // Load/Store (Immediate Offset)
-  if(bit::match_pattern<"cccc011xxxxxxxxxxxxxxxxxxxx0xxxx">(instruction)) return &TranslatorA32::Translate_Unimplemented; // Load/Store (Register Offset)
-  if(bit::match_pattern<"cccc011xxxxxxxxxxxxxxxxxxxx1xxxx">(instruction)) return &TranslatorA32::Translate_Unimplemented;
-  if(bit::match_pattern<"cccc100xxxxxxxxxxxxxxxxxxxxxxxxx">(instruction)) return &TranslatorA32::Translate_Unimplemented;
-  if(bit::match_pattern<"cccc101xxxxxxxxxxxxxxxxxxxxxxxxx">(instruction)) return &TranslatorA32::Translate_Unimplemented;
-  if(bit::match_pattern<"cccc110xxxxxxxxxxxxxxxxxxxxxxxxx">(instruction)) return &TranslatorA32::Translate_Unimplemented;
-  if(bit::match_pattern<"cccc1110xxxxxxxxxxxxxxxxxxx0xxxx">(instruction)) return &TranslatorA32::Translate_Unimplemented;
-  if(bit::match_pattern<"cccc1110xxxxxxxxxxxxxxxxxxx1xxxx">(instruction)) return &TranslatorA32::Translate_Unimplemented;
-  if(bit::match_pattern<"cccc1111xxxxxxxxxxxxxxxxxxxxxxxx">(instruction)) return &TranslatorA32::Translate_Unimplemented;
+  #define DECODE(pattern, handler) { \
+    if(bit::match_pattern<pattern>(instruction)) { \
+      return &TranslatorA32::Translate_##handler;  \
+    } \
+  }
+
+  DECODE("cccc00010x00xxxxxxxxxxxx0000xxxx", MRS)           // Move status register to register
+  DECODE("cccc00010x10xxxxxxxxxxxx0000xxxx", MSR_reg)       // Move register to status register
+  DECODE("cccc00010xx0xxxxxxxxxxxx1xx0xxxx", Unimplemented) // Enhanced DSP multiplies
+  DECODE("cccc000xxxxxxxxxxxxxxxxxxxx0xxxx", Unimplemented) // Data Processing (Shift-by-Immediate)
+  DECODE("cccc00010010xxxxxxxxxxxx0001xxxx", Unimplemented) // Branch/exchange instruction set
+  DECODE("cccc00010110xxxxxxxxxxxx0001xxxx", Unimplemented) // Count leading zeros
+  DECODE("cccc00010010xxxxxxxxxxxx0011xxxx", Unimplemented) // Branch and link/exchange instruction set
+  DECODE("cccc00010xx0xxxxxxxxxxxx0101xxxx", Unimplemented) // Enhanced DSP add/subtracts
+  DECODE("cccc00010010xxxxxxxxxxxx0111xxxx", Unimplemented) // Software breakpoint
+  DECODE("cccc000xxxxxxxxxxxxxxxxx0xx1xxxx", Unimplemented) // Data Processing (Shift-by-Register)
+  DECODE("cccc000000xxxxxxxxxxxxxx1001xxxx", Unimplemented) // Multiply (accumulate)
+  DECODE("cccc00001xxxxxxxxxxxxxxx1001xxxx", Unimplemented) // Multiply (accumulate) long
+  DECODE("cccc00010x00xxxxxxxxxxxx1001xxxx", Unimplemented)
+  DECODE("cccc000xx0xxxxxxxxxxxxxx1011xxxx", Unimplemented) // Load/store halfword register offset
+  DECODE("cccc000xx1xxxxxxxxxxxxxx1011xxxx", Unimplemented) // Load/store halfword immediate offset
+  DECODE("cccc000xx0x0xxxxxxxxxxxx11x1xxxx", Unimplemented) // Load/store two words register offset
+  DECODE("cccc000xx0x1xxxxxxxxxxxx11x1xxxx", Unimplemented) // Load signed halfword/byte register offset
+  DECODE("cccc000xx1x0xxxxxxxxxxxx11x1xxxx", Unimplemented) // Load/store two words immediate offset
+  DECODE("cccc000xx1x1xxxxxxxxxxxx11x1xxxx", Unimplemented) // Load signed halfword/byte register offset
+  DECODE("cccc00110x00xxxxxxxxxxxxxxxxxxxx", Unimplemented)
+  DECODE("cccc00110x10xxxxxxxxxxxxxxxxxxxx", MSR_imm)       // Move immediate to status register
+  DECODE("cccc001xxxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented) // Data Processing (Immediate)
+  DECODE("cccc010xxxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented) // Load/Store (Immediate Offset)
+  DECODE("cccc011xxxxxxxxxxxxxxxxxxxx0xxxx", Unimplemented) // Load/Store (Register Offset)
+  DECODE("cccc011xxxxxxxxxxxxxxxxxxxx1xxxx", Unimplemented)
+  DECODE("cccc100xxxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented)
+  DECODE("cccc101xxxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented)
+  DECODE("cccc110xxxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented)
+  DECODE("cccc1110xxxxxxxxxxxxxxxxxxx0xxxx", Unimplemented)
+  DECODE("cccc1110xxxxxxxxxxxxxxxxxxx1xxxx", Unimplemented)
+  DECODE("cccc1111xxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented)
+
+  #undef DECODE
 
   return &TranslatorA32::Translate_Unimplemented;
 }
