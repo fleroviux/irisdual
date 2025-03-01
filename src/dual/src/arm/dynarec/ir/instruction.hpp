@@ -40,18 +40,8 @@ struct Instruction {
     RRX,
 
     // Data Processing
-    AND,
-    BIC,
-    EOR,
-    SUB,
-    RSB,
     ADD,
-    ADC,
-    SBC,
-    RSC,
-    ORR,
-    MOV,
-    MVN,
+    SUB,
 
     // Other
     BITCMB

@@ -50,18 +50,8 @@ static bool IsSideEffectFree(Instruction* instruction) {
     case Type::ASR:
     case Type::ROR:
     case Type::RRX:
-    case Type::AND:
-    case Type::BIC:
-    case Type::EOR:
-    case Type::SUB:
-    case Type::RSB:
     case Type::ADD:
-    case Type::ADC:
-    case Type::SBC:
-    case Type::RSC:
-    case Type::ORR:
-    case Type::MOV:
-    case Type::MVN:
+    case Type::SUB:
     case Type::BITCMB: {
       return true;
     }

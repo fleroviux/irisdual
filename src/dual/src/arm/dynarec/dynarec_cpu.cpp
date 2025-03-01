@@ -2,7 +2,6 @@
 #include <atom/panic.hpp>
 
 #include "arm/interpreter/interpreter_cpu.hpp"
-//#include "backend/arm64/arm64_backend.hpp"
 #include "backend/interpreter/backend.hpp"
 #include "ir/passes/guest_state_access_removal_pass.hpp"
 #include "ir/passes/host_flag_propagation_pass.hpp"
@@ -194,6 +193,9 @@ jit::ir::Function* DynarecCPU::TryJit() {
       ir::Emitter emitter{*bb, m_tmp_memory_arena};
 
       const TranslatorA32::Code code = m_translator_a32.Translate(r15, cpu_mode, instruction, emitter);
+//      if(bb->head != nullptr) {
+//        fmt::print("IR code:\n{}\n", ir::disassemble(*function));
+//      }
       if(code == TranslatorA32::Code::Success) {
         emitter.EXIT();
         OptimizeFunction(*function);

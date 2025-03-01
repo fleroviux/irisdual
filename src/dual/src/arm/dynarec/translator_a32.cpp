@@ -30,6 +30,63 @@ TranslatorA32::Code TranslatorA32::Translate(u32 r15, CPU::Mode cpu_mode, u32 in
   return (this->*m_handler_lut[hash])(r15, cpu_mode, instruction, emitter);
 }
 
+TranslatorA32::Code TranslatorA32::Translate_DataProcessing_imm(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter) {
+  const ir::GPR reg_dst = bit::get_field<u32, ir::GPR>(instruction, 12u, 4u);
+  const ir::GPR reg_lhs = bit::get_field<u32, ir::GPR>(instruction, 16u, 4u);
+  const bool set_flags = bit::get_bit(instruction, 20);
+  const DataOp opcode = bit::get_field<u32, DataOp>(instruction, 21u, 4u);
+
+  const int imm_shift = bit::get_field<u32, int>(instruction, 8u, 4u) * 2;
+  u32 imm_rhs = bit::get_field(instruction, 0u, 8u);
+
+  if(imm_shift != 0) {
+    if(set_flags) {
+      // Update carry flag
+      // TODO(fleroviux): try to merge this with the flag update later.
+      const ir::U32Value& nzcv_value = emitter.LDCONST(imm_rhs >> (imm_shift - 1) << 29);
+      UpdateFlags(emitter, Flags::C, nzcv_value);
+    }
+
+    imm_rhs = bit::rotate_right(imm_rhs, imm_shift);
+  }
+
+  const ir::U32Value& lhs_value = emitter.LDGPR((ir::GPR)reg_lhs, cpu_mode);
+  const ir::U32Value& rhs_value = emitter.LDCONST(imm_rhs);
+
+  switch(opcode) {
+    case DataOp::SUB: {
+      if(set_flags) {
+        const ir::HostFlagsValue* hflag_value;
+        emitter.STGPR(reg_dst, cpu_mode, emitter.SUB(lhs_value, rhs_value, &hflag_value));
+        UpdateFlags(emitter, Flags::NZCV, *hflag_value);
+      } else {
+        emitter.STGPR(reg_dst, cpu_mode, emitter.SUB(lhs_value, rhs_value));
+      }
+      break;
+    }
+    case DataOp::ADD: {
+      if(set_flags) {
+        const ir::HostFlagsValue* hflag_value;
+        emitter.STGPR(reg_dst, cpu_mode, emitter.ADD(lhs_value, rhs_value, &hflag_value));
+        UpdateFlags(emitter, Flags::NZCV, *hflag_value);
+      } else {
+        emitter.STGPR(reg_dst, cpu_mode, emitter.ADD(lhs_value, rhs_value));
+      }
+      break;
+    }
+    default: {
+      return Code::Fallback;
+    }
+  }
+
+  if(reg_dst == ir::GPR::PC) {
+    return Code::Fallback;
+  }
+
+  emitter.STGPR(ir::GPR::PC, cpu_mode, emitter.LDCONST(r15 + 4u));
+  return Code::Success;
+}
+
 TranslatorA32::Code TranslatorA32::Translate_MRS(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter) {
   const bool use_spsr = bit::get_bit(instruction, 22);
   const ir::GPR reg_dst = bit::get_field<u32, ir::GPR>(instruction, 12u, 4u);
@@ -82,10 +139,6 @@ TranslatorA32::Code TranslatorA32::Translate_MSR_reg(u32 r15, ir::Mode cpu_mode,
   return Code::Success;
 }
 
-TranslatorA32::Code TranslatorA32::Translate_Unimplemented(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter) {
-  return Code::Fallback;
-}
-
 TranslatorA32::Code TranslatorA32::Translate_MSR_imm(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter) {
   const int imm_shift = bit::get_field<u32, int>(instruction, 8u, 4u) * 2;
   const u32 imm = bit::rotate_right(bit::get_field(instruction, 0u, 8u), imm_shift);
@@ -123,6 +176,21 @@ TranslatorA32::Code TranslatorA32::Translate_MSR_imm(u32 r15, ir::Mode cpu_mode,
   return Code::Success;
 }
 
+TranslatorA32::Code TranslatorA32::Translate_Unimplemented(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter) {
+  return Code::Fallback;
+}
+
+void TranslatorA32::UpdateFlags(ir::Emitter& emitter, u32 flag_set, const ir::HostFlagsValue& hflag_value) {
+  const ir::U32Value& nzcv_value = emitter.CVT_HFLAG_NZCV(hflag_value);
+  UpdateFlags(emitter, flag_set, nzcv_value);
+}
+
+void TranslatorA32::UpdateFlags(ir::Emitter& emitter, u32 flag_set, const ir::U32Value& nzcv_value) {
+  const ir::U32Value& cpsr_old = emitter.LDCPSR();
+  const ir::U32Value& cpsr_new = emitter.BITCMB(cpsr_old, nzcv_value, flag_set);
+  emitter.STCPSR(cpsr_new);
+}
+
 void TranslatorA32::BuildLUT() {
   for(u32 hash = 0u; hash < 0x1000; hash++) {
     const u32 instruction = (hash & 0xFF0u) << 16 | (hash & 0xFu) << 4;
@@ -158,7 +226,7 @@ TranslatorA32::HandlerFn TranslatorA32::GetInstructionHandler(u32 instruction) {
   DECODE("cccc000xx1x1xxxxxxxxxxxx11x1xxxx", Unimplemented) // Load signed halfword/byte register offset
   DECODE("cccc00110x00xxxxxxxxxxxxxxxxxxxx", Unimplemented) // Undefined instruction (UNPREDICTABLE prior to ARM architecture version 4.)
   DECODE("cccc00110x10xxxxxxxxxxxxxxxxxxxx", MSR_imm)       // Move immediate to status register
-  DECODE("cccc001xxxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented) // Data Processing (Immediate)
+  DECODE("cccc001xxxxxxxxxxxxxxxxxxxxxxxxx", DataProcessing_imm) // Data Processing (Immediate)
   DECODE("cccc010xxxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented) // Load/Store (Immediate Offset)
   DECODE("cccc011xxxxxxxxxxxxxxxxxxxx0xxxx", Unimplemented) // Load/Store (Register Offset)
   DECODE("cccc011xxxxxxxxxxxxxxxxxxxx1xxxx", Unimplemented) // Undefined instruction

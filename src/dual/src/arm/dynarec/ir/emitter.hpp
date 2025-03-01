@@ -88,16 +88,12 @@ class Emitter {
       return EmitBinaryALUWithCarry(Type::RRX, lhs, rhs, carry_in, hflags_out);
     }
 
-    const U32Value& BIC(const U32Value& lhs, const U32Value& rhs, const HostFlagsValue** hflags_out = nullptr) {
-      return EmitBinaryALU(Type::BIC, lhs, rhs, hflags_out);
-    }
-
     const U32Value& ADD(const U32Value& lhs, const U32Value& rhs, const HostFlagsValue** hflags_out = nullptr) {
       return EmitBinaryALU(Type::ADD, lhs, rhs, hflags_out);
     }
 
-    const U32Value& ORR(const U32Value& lhs, const U32Value& rhs, const HostFlagsValue** hflags_out = nullptr) {
-      return EmitBinaryALU(Type::ORR, lhs, rhs, hflags_out);
+    const U32Value& SUB(const U32Value& lhs, const U32Value& rhs, const HostFlagsValue** hflags_out = nullptr) {
+      return EmitBinaryALU(Type::SUB, lhs, rhs, hflags_out);
     }
 
     const U32Value& BITCMB(const U32Value& lhs, const U32Value& rhs, const U32Value& mask) {
