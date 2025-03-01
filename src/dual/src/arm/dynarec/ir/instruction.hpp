@@ -39,7 +39,7 @@ struct Instruction {
     ROR,
     RRX,
 
-    // Data processing
+    // Data Processing
     AND,
     BIC,
     EOR,
