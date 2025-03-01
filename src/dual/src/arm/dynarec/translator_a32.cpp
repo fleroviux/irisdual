@@ -149,25 +149,25 @@ TranslatorA32::HandlerFn TranslatorA32::GetInstructionHandler(u32 instruction) {
   DECODE("cccc000xxxxxxxxxxxxxxxxx0xx1xxxx", Unimplemented) // Data Processing (Shift-by-Register)
   DECODE("cccc000000xxxxxxxxxxxxxx1001xxxx", Unimplemented) // Multiply (accumulate)
   DECODE("cccc00001xxxxxxxxxxxxxxx1001xxxx", Unimplemented) // Multiply (accumulate) long
-  DECODE("cccc00010x00xxxxxxxxxxxx1001xxxx", Unimplemented)
+  DECODE("cccc00010x00xxxxxxxxxxxx1001xxxx", Unimplemented) // Swap/swap byte
   DECODE("cccc000xx0xxxxxxxxxxxxxx1011xxxx", Unimplemented) // Load/store halfword register offset
   DECODE("cccc000xx1xxxxxxxxxxxxxx1011xxxx", Unimplemented) // Load/store halfword immediate offset
   DECODE("cccc000xx0x0xxxxxxxxxxxx11x1xxxx", Unimplemented) // Load/store two words register offset
   DECODE("cccc000xx0x1xxxxxxxxxxxx11x1xxxx", Unimplemented) // Load signed halfword/byte register offset
   DECODE("cccc000xx1x0xxxxxxxxxxxx11x1xxxx", Unimplemented) // Load/store two words immediate offset
   DECODE("cccc000xx1x1xxxxxxxxxxxx11x1xxxx", Unimplemented) // Load signed halfword/byte register offset
-  DECODE("cccc00110x00xxxxxxxxxxxxxxxxxxxx", Unimplemented)
+  DECODE("cccc00110x00xxxxxxxxxxxxxxxxxxxx", Unimplemented) // Undefined instruction (UNPREDICTABLE prior to ARM architecture version 4.)
   DECODE("cccc00110x10xxxxxxxxxxxxxxxxxxxx", MSR_imm)       // Move immediate to status register
   DECODE("cccc001xxxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented) // Data Processing (Immediate)
   DECODE("cccc010xxxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented) // Load/Store (Immediate Offset)
   DECODE("cccc011xxxxxxxxxxxxxxxxxxxx0xxxx", Unimplemented) // Load/Store (Register Offset)
-  DECODE("cccc011xxxxxxxxxxxxxxxxxxxx1xxxx", Unimplemented)
-  DECODE("cccc100xxxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented)
-  DECODE("cccc101xxxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented)
-  DECODE("cccc110xxxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented)
-  DECODE("cccc1110xxxxxxxxxxxxxxxxxxx0xxxx", Unimplemented)
-  DECODE("cccc1110xxxxxxxxxxxxxxxxxxx1xxxx", Unimplemented)
-  DECODE("cccc1111xxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented)
+  DECODE("cccc011xxxxxxxxxxxxxxxxxxxx1xxxx", Unimplemented) // Undefined instruction
+  DECODE("cccc100xxxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented) // Load/store multiple
+  DECODE("cccc101xxxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented) // Branch and branch with link
+  DECODE("cccc110xxxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented) // Coprocessor load/store and double register transfers
+  DECODE("cccc1110xxxxxxxxxxxxxxxxxxx0xxxx", Unimplemented) // Coprocessor data processing
+  DECODE("cccc1110xxxxxxxxxxxxxxxxxxx1xxxx", Unimplemented) // Coprocessor register transfers
+  DECODE("cccc1111xxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented) // Software interrupt
 
   #undef DECODE
 
