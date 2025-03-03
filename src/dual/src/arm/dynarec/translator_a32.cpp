@@ -86,6 +86,15 @@ TranslatorA32::Code TranslatorA32::Translate_DataProcessing(u32 r15, ir::Mode cp
       }
       break;
     }
+    case DataOp::EOR: {
+      if(set_flags) {
+        emitter.STGPR(reg_dst, cpu_mode, emitter.EOR(lhs_value, *rhs_value, &hflag_value));
+        UpdateFlags(emitter, Flags::NZ, *hflag_value);
+      } else {
+        emitter.STGPR(reg_dst, cpu_mode, emitter.EOR(lhs_value, *rhs_value));
+      }
+      break;
+    }
     case DataOp::SUB: {
       if(set_flags) {
         emitter.STGPR(reg_dst, cpu_mode, emitter.SUB(lhs_value, *rhs_value, &hflag_value));
@@ -145,6 +154,11 @@ TranslatorA32::Code TranslatorA32::Translate_DataProcessing(u32 r15, ir::Mode cp
     }
     case DataOp::TST: {
       emitter.AND(lhs_value, *rhs_value, &hflag_value);
+      UpdateFlags(emitter, Flags::NZ, *hflag_value);
+      break;
+    }
+    case DataOp::TEQ: {
+      emitter.EOR(lhs_value, *rhs_value, &hflag_value);
       UpdateFlags(emitter, Flags::NZ, *hflag_value);
       break;
     }

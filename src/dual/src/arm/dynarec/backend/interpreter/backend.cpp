@@ -212,6 +212,25 @@ void InterpreterBackend::Execute(const ir::Function& function, bool debug) {
           m_host_regs[result_value].data_u32 = result;
           break;
         }
+        case InstructionType::EOR: {
+          const u32 lhs = m_host_regs[instruction->GetArg(0u).AsValue()].data_u32;
+          const u32 rhs = m_host_regs[instruction->GetArg(1u).AsValue()].data_u32;
+          const u32 result = lhs ^ rhs;
+
+          const ir::Value::ID result_value = instruction->GetOut(0u);
+
+          if(instruction->flags & ir::Instruction::Flag::OutputHostFlags) {
+            const ir::Value::ID hflag_value = instruction->GetOut(1u);
+
+            u32 nzcv_value = result & 0x80000000u;
+            if(result == 0u) nzcv_value |= 0x40000000u;
+
+            m_host_regs[hflag_value].data_u32 = nzcv_value;
+          }
+
+          m_host_regs[result_value].data_u32 = result;
+          break;
+        }
 
         // Other
         case InstructionType::BITCMB: {

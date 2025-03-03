@@ -45,6 +45,7 @@ struct Instruction {
     SUB,
     SBC,
     AND,
+    EOR,
 
     // Other
     BITCMB
