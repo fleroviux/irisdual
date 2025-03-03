@@ -92,6 +92,10 @@ class Emitter {
       return EmitBinaryALU(Type::ADD, lhs, rhs, hflags_out);
     }
 
+    const U32Value& ADC(const U32Value& lhs, const U32Value& rhs, const HostFlagsValue& carry_in, const HostFlagsValue** hflags_out = nullptr) {
+      return EmitBinaryALUWithCarry(Type::ADC, lhs, rhs, carry_in, hflags_out);
+    }
+
     const U32Value& SUB(const U32Value& lhs, const U32Value& rhs, const HostFlagsValue** hflags_out = nullptr) {
       return EmitBinaryALU(Type::SUB, lhs, rhs, hflags_out);
     }

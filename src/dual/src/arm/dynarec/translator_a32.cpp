@@ -113,6 +113,16 @@ TranslatorA32::Code TranslatorA32::Translate_DataProcessing(u32 r15, ir::Mode cp
       }
       break;
     }
+    case DataOp::ADC: {
+      const ir::HostFlagsValue& carry_in = emitter.CVT_NZCV_HFLAG(emitter.LDCPSR());
+      if(set_flags) {
+        emitter.STGPR(reg_dst, cpu_mode, emitter.ADC(lhs_value, *rhs_value, carry_in, &hflag_value));
+        UpdateFlags(emitter, Flags::NZCV, *hflag_value);
+      } else {
+        emitter.STGPR(reg_dst, cpu_mode, emitter.ADC(lhs_value, *rhs_value, carry_in));
+      }
+      break;
+    }
     case DataOp::SBC: {
       const ir::HostFlagsValue& carry_in = emitter.CVT_NZCV_HFLAG(emitter.LDCPSR());
       if(set_flags) {

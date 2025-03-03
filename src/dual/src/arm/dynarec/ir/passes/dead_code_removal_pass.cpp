@@ -51,6 +51,7 @@ static bool IsSideEffectFree(Instruction* instruction) {
     case Type::ROR:
     case Type::RRX:
     case Type::ADD:
+    case Type::ADC:
     case Type::SUB:
     case Type::SBC:
     case Type::AND:

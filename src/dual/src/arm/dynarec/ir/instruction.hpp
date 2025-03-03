@@ -41,6 +41,7 @@ struct Instruction {
 
     // Data Processing
     ADD,
+    ADC,
     SUB,
     SBC,
     AND,
