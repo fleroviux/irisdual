@@ -148,7 +148,10 @@ static const char* get_instruction_mnemonic(Instruction::Type type) {
     case Instruction::Type::SUB:    return "sub";
     case Instruction::Type::SBC:    return "sbc";
     case Instruction::Type::AND:    return "and";
+    case Instruction::Type::BIC:    return "bic";
+    case Instruction::Type::ORR:    return "orr";
     case Instruction::Type::EOR:    return "eor";
+    case Instruction::Type::NOT:    return "not";
     case Instruction::Type::BITCMB: return "bitcmb";
     default: ATOM_PANIC("unhandled instruction type: {}", (int)type);
   }

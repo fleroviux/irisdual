@@ -168,6 +168,21 @@ TranslatorA32::Code TranslatorA32::Translate_DataProcessing(u32 r15, ir::Mode cp
       UpdateFlags(emitter, Flags::NZCV, *hflag_value);
       break;
     }
+    case DataOp::CMN: {
+      const ir::HostFlagsValue* hflag_value;
+      emitter.ADD(lhs_value, *rhs_value, &hflag_value);
+      UpdateFlags(emitter, Flags::NZCV, *hflag_value);
+      break;
+    }
+    case DataOp::ORR: {
+      if(set_flags) {
+        emitter.STGPR(reg_dst, cpu_mode, emitter.ORR(lhs_value, *rhs_value, &hflag_value));
+        UpdateFlags(emitter, Flags::NZ, *hflag_value);
+      } else {
+        emitter.STGPR(reg_dst, cpu_mode, emitter.ORR(lhs_value, *rhs_value));
+      }
+      break;
+    }
     case DataOp::MOV: {
       if(set_flags) {
         emitter.AND(*rhs_value, *rhs_value, &hflag_value);
@@ -176,9 +191,26 @@ TranslatorA32::Code TranslatorA32::Translate_DataProcessing(u32 r15, ir::Mode cp
       emitter.STGPR(reg_dst, cpu_mode, *rhs_value);
       break;
     }
+    case DataOp::BIC: {
+      if(set_flags) {
+        emitter.STGPR(reg_dst, cpu_mode, emitter.BIC(lhs_value, *rhs_value, &hflag_value));
+        UpdateFlags(emitter, Flags::NZ, *hflag_value);
+      } else {
+        emitter.STGPR(reg_dst, cpu_mode, emitter.BIC(lhs_value, *rhs_value));
+      }
+      break;
+    }
+    case DataOp::MVN: {
+      const ir::U32Value& neg_rhs_value = emitter.NOT(*rhs_value);
+      if(set_flags) {
+        emitter.AND(neg_rhs_value, neg_rhs_value, &hflag_value);
+        UpdateFlags(emitter, Flags::NZ, *hflag_value);
+      }
+      emitter.STGPR(reg_dst, cpu_mode, neg_rhs_value);
+      break;
+    }
     default: {
-      fmt::print("aaa {} {}\n", (int)opcode, set_flags);
-      return Code::Fallback;
+      ATOM_PANIC("unknown data processing opcode: {}", (int)opcode);
     }
   }
 
