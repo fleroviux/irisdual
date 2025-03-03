@@ -30,97 +30,126 @@ TranslatorA32::Code TranslatorA32::Translate(u32 r15, CPU::Mode cpu_mode, u32 in
   return (this->*m_handler_lut[hash])(r15, cpu_mode, instruction, emitter);
 }
 
-TranslatorA32::Code TranslatorA32::Translate_DataProcessing_imm(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter) {
+TranslatorA32::Code TranslatorA32::Translate_DataProcessing(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter) {
   const ir::GPR reg_dst = bit::get_field<u32, ir::GPR>(instruction, 12u, 4u);
   const ir::GPR reg_lhs = bit::get_field<u32, ir::GPR>(instruction, 16u, 4u);
   const bool set_flags = bit::get_bit(instruction, 20);
   const DataOp opcode = bit::get_field<u32, DataOp>(instruction, 21u, 4u);
-
-  const int imm_shift = bit::get_field<u32, int>(instruction, 8u, 4u) * 2;
-  u32 imm_rhs = bit::get_field(instruction, 0u, 8u);
-
-  if(imm_shift != 0) {
-    if(set_flags) {
-      // Update carry flag
-      // TODO(fleroviux): try to merge this with the flag update later.
-      const ir::U32Value& nzcv_value = emitter.LDCONST(imm_rhs >> (imm_shift - 1) << 29);
-      UpdateFlags(emitter, Flags::C, nzcv_value);
-    }
-
-    imm_rhs = bit::rotate_right(imm_rhs, imm_shift);
-  }
+  const bool immediate = bit::get_bit(instruction, 25);
 
   const ir::U32Value& lhs_value = emitter.LDGPR((ir::GPR)reg_lhs, cpu_mode);
-  const ir::U32Value& rhs_value = emitter.LDCONST(imm_rhs);
+  const ir::U32Value* rhs_value;
+
+  if(immediate) {
+    const int imm_shift = bit::get_field<u32, int>(instruction, 8u, 4u) * 2;
+    u32 imm_rhs = bit::get_field(instruction, 0u, 8u);
+
+    if(imm_shift != 0) {
+      if(set_flags) {
+        // Update carry flag
+        // TODO(fleroviux): try to merge this with the flag update later.
+        const ir::U32Value &nzcv_value = emitter.LDCONST(imm_rhs >> (imm_shift - 1) << 29);
+        UpdateFlags(emitter, Flags::C, nzcv_value);
+      }
+
+      imm_rhs = bit::rotate_right(imm_rhs, imm_shift);
+    }
+
+    rhs_value = &emitter.LDCONST(imm_rhs);
+  } else {
+    const bool use_reg_shift = bit::get_bit(instruction, 4);
+    const Shift shift_op = bit::get_field<u32, Shift>(instruction, 5u, 2u);
+
+    // TODO(fleroviux): implement the barrel shifter
+    if(use_reg_shift) {
+      return Code::Fallback;
+    } else {
+      const int imm_shift = bit::get_field<u32, int>(instruction, 7u, 5u);
+      if(shift_op != Shift::LSL || imm_shift != 0) {
+        return Code::Fallback;
+      }
+    }
+
+    const ir::GPR reg_rhs = bit::get_field<u32, ir::GPR>(instruction, 0u, 4u);
+    rhs_value = &emitter.LDGPR(reg_rhs, cpu_mode);
+  }
 
   const ir::HostFlagsValue* hflag_value;
 
   switch(opcode) {
     case DataOp::AND: {
       if(set_flags) {
-        emitter.STGPR(reg_dst, cpu_mode, emitter.AND(lhs_value, rhs_value, &hflag_value));
+        emitter.STGPR(reg_dst, cpu_mode, emitter.AND(lhs_value, *rhs_value, &hflag_value));
         UpdateFlags(emitter, Flags::NZ, *hflag_value);
       } else {
-        emitter.STGPR(reg_dst, cpu_mode, emitter.AND(lhs_value, rhs_value));
+        emitter.STGPR(reg_dst, cpu_mode, emitter.AND(lhs_value, *rhs_value));
       }
       break;
     }
     case DataOp::SUB: {
       if(set_flags) {
-        emitter.STGPR(reg_dst, cpu_mode, emitter.SUB(lhs_value, rhs_value, &hflag_value));
+        emitter.STGPR(reg_dst, cpu_mode, emitter.SUB(lhs_value, *rhs_value, &hflag_value));
         UpdateFlags(emitter, Flags::NZCV, *hflag_value);
       } else {
-        emitter.STGPR(reg_dst, cpu_mode, emitter.SUB(lhs_value, rhs_value));
+        emitter.STGPR(reg_dst, cpu_mode, emitter.SUB(lhs_value, *rhs_value));
       }
       break;
     }
     case DataOp::RSB: {
       if(set_flags) {
-        emitter.STGPR(reg_dst, cpu_mode, emitter.SUB(rhs_value, lhs_value, &hflag_value));
+        emitter.STGPR(reg_dst, cpu_mode, emitter.SUB(*rhs_value, lhs_value, &hflag_value));
         UpdateFlags(emitter, Flags::NZCV, *hflag_value);
       } else {
-        emitter.STGPR(reg_dst, cpu_mode, emitter.SUB(rhs_value, lhs_value));
+        emitter.STGPR(reg_dst, cpu_mode, emitter.SUB(*rhs_value, lhs_value));
       }
       break;
     }
     case DataOp::ADD: {
       if(set_flags) {
-        emitter.STGPR(reg_dst, cpu_mode, emitter.ADD(lhs_value, rhs_value, &hflag_value));
+        emitter.STGPR(reg_dst, cpu_mode, emitter.ADD(lhs_value, *rhs_value, &hflag_value));
         UpdateFlags(emitter, Flags::NZCV, *hflag_value);
       } else {
-        emitter.STGPR(reg_dst, cpu_mode, emitter.ADD(lhs_value, rhs_value));
+        emitter.STGPR(reg_dst, cpu_mode, emitter.ADD(lhs_value, *rhs_value));
       }
       break;
     }
     case DataOp::SBC: {
       const ir::HostFlagsValue& carry_in = emitter.CVT_NZCV_HFLAG(emitter.LDCPSR());
       if(set_flags) {
-        emitter.STGPR(reg_dst, cpu_mode, emitter.SBC(lhs_value, rhs_value, carry_in, &hflag_value));
+        emitter.STGPR(reg_dst, cpu_mode, emitter.SBC(lhs_value, *rhs_value, carry_in, &hflag_value));
         UpdateFlags(emitter, Flags::NZCV, *hflag_value);
       } else {
-        emitter.STGPR(reg_dst, cpu_mode, emitter.SBC(lhs_value, rhs_value, carry_in));
+        emitter.STGPR(reg_dst, cpu_mode, emitter.SBC(lhs_value, *rhs_value, carry_in));
       }
       break;
     }
     case DataOp::RSC: {
       const ir::HostFlagsValue& carry_in = emitter.CVT_NZCV_HFLAG(emitter.LDCPSR());
       if(set_flags) {
-        emitter.STGPR(reg_dst, cpu_mode, emitter.SBC(rhs_value, lhs_value, carry_in, &hflag_value));
+        emitter.STGPR(reg_dst, cpu_mode, emitter.SBC(*rhs_value, lhs_value, carry_in, &hflag_value));
         UpdateFlags(emitter, Flags::NZCV, *hflag_value);
       } else {
-        emitter.STGPR(reg_dst, cpu_mode, emitter.SBC(rhs_value, lhs_value, carry_in));
+        emitter.STGPR(reg_dst, cpu_mode, emitter.SBC(*rhs_value, lhs_value, carry_in));
       }
       break;
     }
     case DataOp::TST: {
-      emitter.AND(lhs_value, rhs_value, &hflag_value);
+      emitter.AND(lhs_value, *rhs_value, &hflag_value);
       UpdateFlags(emitter, Flags::NZ, *hflag_value);
       break;
     }
     case DataOp::CMP: {
       const ir::HostFlagsValue* hflag_value;
-      emitter.SUB(lhs_value, rhs_value, &hflag_value);
+      emitter.SUB(lhs_value, *rhs_value, &hflag_value);
       UpdateFlags(emitter, Flags::NZCV, *hflag_value);
+      break;
+    }
+    case DataOp::MOV: {
+      if(set_flags) {
+        emitter.AND(*rhs_value, *rhs_value, &hflag_value);
+        UpdateFlags(emitter, Flags::NZ, *hflag_value);
+      }
+      emitter.STGPR(reg_dst, cpu_mode, *rhs_value);
       break;
     }
     default: {
@@ -255,37 +284,37 @@ TranslatorA32::HandlerFn TranslatorA32::GetInstructionHandler(u32 instruction) {
     } \
   }
 
-  DECODE("cccc00010x00xxxxxxxxxxxx0000xxxx", MRS)           // Move status register to register
-  DECODE("cccc00010x10xxxxxxxxxxxx0000xxxx", MSR_reg)       // Move register to status register
-  DECODE("cccc00010xx0xxxxxxxxxxxx1xx0xxxx", Unimplemented) // Enhanced DSP multiplies
-  DECODE("cccc000xxxxxxxxxxxxxxxxxxxx0xxxx", Unimplemented) // Data Processing (Shift-by-Immediate)
-  DECODE("cccc00010010xxxxxxxxxxxx0001xxxx", Unimplemented) // Branch/exchange instruction set
-  DECODE("cccc00010110xxxxxxxxxxxx0001xxxx", Unimplemented) // Count leading zeros
-  DECODE("cccc00010010xxxxxxxxxxxx0011xxxx", Unimplemented) // Branch and link/exchange instruction set
-  DECODE("cccc00010xx0xxxxxxxxxxxx0101xxxx", Unimplemented) // Enhanced DSP add/subtracts
-  DECODE("cccc00010010xxxxxxxxxxxx0111xxxx", Unimplemented) // Software breakpoint
-  DECODE("cccc000xxxxxxxxxxxxxxxxx0xx1xxxx", Unimplemented) // Data Processing (Shift-by-Register)
-  DECODE("cccc000000xxxxxxxxxxxxxx1001xxxx", Unimplemented) // Multiply (accumulate)
-  DECODE("cccc00001xxxxxxxxxxxxxxx1001xxxx", Unimplemented) // Multiply (accumulate) long
-  DECODE("cccc00010x00xxxxxxxxxxxx1001xxxx", Unimplemented) // Swap/swap byte
-  DECODE("cccc000xx0xxxxxxxxxxxxxx1011xxxx", Unimplemented) // Load/store halfword register offset
-  DECODE("cccc000xx1xxxxxxxxxxxxxx1011xxxx", Unimplemented) // Load/store halfword immediate offset
-  DECODE("cccc000xx0x0xxxxxxxxxxxx11x1xxxx", Unimplemented) // Load/store two words register offset
-  DECODE("cccc000xx0x1xxxxxxxxxxxx11x1xxxx", Unimplemented) // Load signed halfword/byte register offset
-  DECODE("cccc000xx1x0xxxxxxxxxxxx11x1xxxx", Unimplemented) // Load/store two words immediate offset
-  DECODE("cccc000xx1x1xxxxxxxxxxxx11x1xxxx", Unimplemented) // Load signed halfword/byte register offset
-  DECODE("cccc00110x00xxxxxxxxxxxxxxxxxxxx", Unimplemented) // Undefined instruction (UNPREDICTABLE prior to ARM architecture version 4.)
-  DECODE("cccc00110x10xxxxxxxxxxxxxxxxxxxx", MSR_imm)       // Move immediate to status register
-  DECODE("cccc001xxxxxxxxxxxxxxxxxxxxxxxxx", DataProcessing_imm) // Data Processing (Immediate)
-  DECODE("cccc010xxxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented) // Load/Store (Immediate Offset)
-  DECODE("cccc011xxxxxxxxxxxxxxxxxxxx0xxxx", Unimplemented) // Load/Store (Register Offset)
-  DECODE("cccc011xxxxxxxxxxxxxxxxxxxx1xxxx", Unimplemented) // Undefined instruction
-  DECODE("cccc100xxxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented) // Load/store multiple
-  DECODE("cccc101xxxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented) // Branch and branch with link
-  DECODE("cccc110xxxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented) // Coprocessor load/store and double register transfers
-  DECODE("cccc1110xxxxxxxxxxxxxxxxxxx0xxxx", Unimplemented) // Coprocessor data processing
-  DECODE("cccc1110xxxxxxxxxxxxxxxxxxx1xxxx", Unimplemented) // Coprocessor register transfers
-  DECODE("cccc1111xxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented) // Software interrupt
+  DECODE("cccc00010x00xxxxxxxxxxxx0000xxxx", MRS)            // Move status register to register
+  DECODE("cccc00010x10xxxxxxxxxxxx0000xxxx", MSR_reg)        // Move register to status register
+  DECODE("cccc00010xx0xxxxxxxxxxxx1xx0xxxx", Unimplemented)  // Enhanced DSP multiplies
+  DECODE("cccc000xxxxxxxxxxxxxxxxxxxx0xxxx", DataProcessing)  // Data Processing (Shift-by-Immediate)
+  DECODE("cccc00010010xxxxxxxxxxxx0001xxxx", Unimplemented)  // Branch/exchange instruction set
+  DECODE("cccc00010110xxxxxxxxxxxx0001xxxx", Unimplemented)  // Count leading zeros
+  DECODE("cccc00010010xxxxxxxxxxxx0011xxxx", Unimplemented)  // Branch and link/exchange instruction set
+  DECODE("cccc00010xx0xxxxxxxxxxxx0101xxxx", Unimplemented)  // Enhanced DSP add/subtracts
+  DECODE("cccc00010010xxxxxxxxxxxx0111xxxx", Unimplemented)  // Software breakpoint
+  DECODE("cccc000xxxxxxxxxxxxxxxxx0xx1xxxx", DataProcessing)  // Data Processing (Shift-by-Register)
+  DECODE("cccc000000xxxxxxxxxxxxxx1001xxxx", Unimplemented)  // Multiply (accumulate)
+  DECODE("cccc00001xxxxxxxxxxxxxxx1001xxxx", Unimplemented)  // Multiply (accumulate) long
+  DECODE("cccc00010x00xxxxxxxxxxxx1001xxxx", Unimplemented)  // Swap/swap byte
+  DECODE("cccc000xx0xxxxxxxxxxxxxx1011xxxx", Unimplemented)  // Load/store halfword register offset
+  DECODE("cccc000xx1xxxxxxxxxxxxxx1011xxxx", Unimplemented)  // Load/store halfword immediate offset
+  DECODE("cccc000xx0x0xxxxxxxxxxxx11x1xxxx", Unimplemented)  // Load/store two words register offset
+  DECODE("cccc000xx0x1xxxxxxxxxxxx11x1xxxx", Unimplemented)  // Load signed halfword/byte register offset
+  DECODE("cccc000xx1x0xxxxxxxxxxxx11x1xxxx", Unimplemented)  // Load/store two words immediate offset
+  DECODE("cccc000xx1x1xxxxxxxxxxxx11x1xxxx", Unimplemented)  // Load signed halfword/byte register offset
+  DECODE("cccc00110x00xxxxxxxxxxxxxxxxxxxx", Unimplemented)  // Undefined instruction (UNPREDICTABLE prior to ARM architecture version 4.)
+  DECODE("cccc00110x10xxxxxxxxxxxxxxxxxxxx", MSR_imm)        // Move immediate to status register
+  DECODE("cccc001xxxxxxxxxxxxxxxxxxxxxxxxx", DataProcessing) // Data Processing (Immediate)
+  DECODE("cccc010xxxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented)  // Load/Store (Immediate Offset)
+  DECODE("cccc011xxxxxxxxxxxxxxxxxxxx0xxxx", Unimplemented)  // Load/Store (Register Offset)
+  DECODE("cccc011xxxxxxxxxxxxxxxxxxxx1xxxx", Unimplemented)  // Undefined instruction
+  DECODE("cccc100xxxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented)  // Load/store multiple
+  DECODE("cccc101xxxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented)  // Branch and branch with link
+  DECODE("cccc110xxxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented)  // Coprocessor load/store and double register transfers
+  DECODE("cccc1110xxxxxxxxxxxxxxxxxxx0xxxx", Unimplemented)  // Coprocessor data processing
+  DECODE("cccc1110xxxxxxxxxxxxxxxxxxx1xxxx", Unimplemented)  // Coprocessor register transfers
+  DECODE("cccc1111xxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented)  // Software interrupt
 
   #undef DECODE
 

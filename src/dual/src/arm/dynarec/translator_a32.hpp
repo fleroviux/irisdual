@@ -35,6 +35,13 @@ class TranslatorA32 {
       };
     };
 
+    enum class Shift {
+      LSL = 0,
+      LSR = 1,
+      ASR = 2,
+      ROR = 3
+    };
+
     enum class DataOp {
       AND = 0,
       EOR = 1,
@@ -54,7 +61,7 @@ class TranslatorA32 {
       MVN = 15
     };
 
-    Code Translate_DataProcessing_imm(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter);
+    Code Translate_DataProcessing(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter);
     Code Translate_MRS(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter);
     Code Translate_MSR_reg(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter);
     Code Translate_MSR_imm(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter);
