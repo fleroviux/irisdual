@@ -91,6 +91,7 @@ namespace dual::nds {
     }
 
     // @todo: integrate the new dynamic recompiler more cleanly
+    // m_arm9.cpu = std::make_unique<arm::DynarecCPU>(m_arm9.bus, m_scheduler, m_arm9.cycle_counter, arm::CPU::Model::ARM9, std::span<const arm::AttachCPn>{{attach_cp15}});
     m_arm7.cpu = std::make_unique<arm::DynarecCPU>(m_arm7.bus, m_scheduler, m_arm7.cycle_counter, arm::CPU::Model::ARM7);
 
     m_arm9.irq.SetCPU(m_arm9.cpu.get());

@@ -40,6 +40,11 @@ TranslatorA32::Code TranslatorA32::Translate_DataProcessing(u32 r15, ir::Mode cp
   const ir::U32Value& lhs_value = emitter.LDGPR((ir::GPR)reg_lhs, cpu_mode);
   const ir::U32Value* rhs_value;
 
+  // TODO(fleroviux): shifter implementation notes:
+  // - Shift operation does not always update carry flag! I.e. LSL #0 (even with register specified shift) does not!
+  // - ADC and friends always use the *original* carry flag
+  // - Shifter carry is only output if the ALU op itself does not output a carry!
+
   if(immediate) {
     const int imm_shift = bit::get_field<u32, int>(instruction, 8u, 4u) * 2;
     u32 imm_rhs = bit::get_field(instruction, 0u, 8u);

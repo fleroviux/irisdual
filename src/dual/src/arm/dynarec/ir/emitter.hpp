@@ -68,24 +68,29 @@ class Emitter {
       Emit(Type::EXIT, 0u);
     }
 
-    const U32Value& LSL(const U32Value& lhs, const U32Value& rhs, const HostFlagsValue** carry_out = nullptr) {
-      return EmitBinaryALU(Type::LSL, lhs, rhs, carry_out);
+    const U32Value& LSL(const U32Value& value, const U32Value& shift_amount, const HostFlagsValue** carry_out = nullptr) {
+      return EmitBinaryALU(Type::LSL, value, shift_amount, carry_out);
     }
 
-    const U32Value& LSR(const U32Value& lhs, const U32Value& rhs, const HostFlagsValue** carry_out = nullptr) {
-      return EmitBinaryALU(Type::LSR, lhs, rhs, carry_out);
+    const U32Value& LSR(const U32Value& value, const U32Value& shift_amount, const HostFlagsValue** carry_out = nullptr) {
+      return EmitBinaryALU(Type::LSR, value, shift_amount, carry_out);
     }
 
-    const U32Value& ASR(const U32Value& lhs, const U32Value& rhs, const HostFlagsValue** carry_out = nullptr) {
-      return EmitBinaryALU(Type::ASR, lhs, rhs, carry_out);
+    const U32Value& ASR(const U32Value& value, const U32Value& shift_amount, const HostFlagsValue** carry_out = nullptr) {
+      return EmitBinaryALU(Type::ASR, value, shift_amount, carry_out);
     }
 
-    const U32Value& ROR(const U32Value& lhs, const U32Value& rhs, const HostFlagsValue** carry_out = nullptr) {
-      return EmitBinaryALU(Type::ROR, lhs, rhs, carry_out);
+    const U32Value& ROR(const U32Value& value, const U32Value& shift_amount, const HostFlagsValue** carry_out = nullptr) {
+      return EmitBinaryALU(Type::ROR, value, shift_amount, carry_out);
     }
 
-    const U32Value& RRX(const U32Value& lhs, const U32Value& rhs, const HostFlagsValue& carry_in, const HostFlagsValue** hflags_out = nullptr) {
-      return EmitBinaryALUWithCarry(Type::RRX, lhs, rhs, carry_in, hflags_out);
+    const U32Value& RRX(const U32Value& value, const HostFlagsValue& carry_in, const HostFlagsValue** carry_out = nullptr) {
+      if(carry_out) {
+        const auto [result_value, hflags_value] = Emit<U32Value, HostFlagsValue>(Type::RRX, Flag::OutputHostFlags, value, carry_in);
+        *carry_out = &hflags_value;
+        return result_value;
+      }
+      return std::get<0>(Emit<U32Value>(Type::RRX, 0u, value, carry_in));
     }
 
     const U32Value& ADD(const U32Value& lhs, const U32Value& rhs, const HostFlagsValue** hflags_out = nullptr) {

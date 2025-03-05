@@ -99,6 +99,26 @@ void InterpreterBackend::Execute(const ir::Function& function, bool debug) {
           break;
         }
 
+        // Barrel Shifter
+        case InstructionType::LSL: {
+          const u32 value = m_host_regs[instruction->GetArg(0u).AsValue()].data_u32;
+          const u32 shift_amount = m_host_regs[instruction->GetArg(1u).AsValue()].data_u32;
+          if(shift_amount >= 32) {
+            ATOM_PANIC("LSL #{} is UB", shift_amount);
+          }
+          if(instruction->flags & ir::Instruction::Flag::OutputHostFlags) {
+            const ir::Value::ID hflag_value = instruction->GetOut(1u);
+            if(shift_amount == 0) {
+              m_host_regs[hflag_value].data_u32 = 0u;
+            } else {
+              m_host_regs[hflag_value].data_u32 = value << (shift_amount - 1) >> 2;
+              fmt::print("0x{:08X} << {}\n", value, shift_amount);
+            }
+          }
+          m_host_regs[instruction->GetOut(0u)].data_u32 = value << shift_amount;
+          break;
+        }
+
         // Data Processing
         case InstructionType::ADD: {
           const u32 lhs = m_host_regs[instruction->GetArg(0u).AsValue()].data_u32;
