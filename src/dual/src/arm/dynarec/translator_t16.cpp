@@ -16,8 +16,78 @@ TranslatorT16::Code TranslatorT16::Translate(u32 r15, ir::Mode cpu_mode, u16 ins
   return (this->*m_handler_lut[hash])(r15, cpu_mode, instruction, emitter);
 }
 
+TranslatorT16::Code TranslatorT16::Translate_ShiftByImmediate(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
+  const ir::GPR reg_dst = bit::get_field<u16, ir::GPR>(instruction, 0u, 3u);
+  const ir::GPR reg_src = bit::get_field<u16, ir::GPR>(instruction, 3u, 3u);
+  const int imm_shift = bit::get_field<u16, int>(instruction, 6u, 5u);
+  const Shift shift_op = bit::get_field<u16, Shift>(instruction, 11u, 2u);
+
+  const ir::U32Value& src_value = emitter.LDGPR(reg_src, cpu_mode);
+  const ir::U32Value* result_value = &src_value;
+
+  // TODO(fleroviux): turn this into a reusable function
+  const ir::HostFlagsValue* carry_out_value;
+  switch(shift_op) {
+    case Shift::LSL: {
+      if(imm_shift != 0) {
+        result_value = &emitter.LSL(src_value, emitter.LDCONST((u32)imm_shift), &carry_out_value);
+        UpdateFlags(emitter, Flags::C, *carry_out_value);
+      }
+      break;
+    }
+    case Shift::LSR: {
+      // LSR #32 is encoded as LSR #0
+      if(imm_shift == 0) {
+        ATOM_PANIC("unhandled LSR #32");
+      }
+      result_value = &emitter.LSR(src_value, emitter.LDCONST((u32)imm_shift), &carry_out_value);
+      UpdateFlags(emitter, Flags::C, *carry_out_value);
+      break;
+    }
+    case Shift::ASR: {
+      // ASR #32 is encoded as ASR #0
+      if(imm_shift == 0) {
+        ATOM_PANIC("unhandled ASR #32");
+      }
+      result_value = &emitter.ASR(src_value, emitter.LDCONST((u32)imm_shift), &carry_out_value);
+      UpdateFlags(emitter, Flags::C, *carry_out_value);
+      break;
+    }
+    default: {
+      // shift_op == 0b11 is used to encode ""Add/subtract register or immediate" instructions
+      ATOM_UNREACHABLE()
+    }
+  }
+
+  // Update NZ flags
+  const ir::HostFlagsValue* hflag_value;
+  emitter.AND(*result_value, *result_value, &hflag_value);
+  UpdateFlags(emitter, Flags::NZ, *hflag_value);
+
+  // Store the result in the destination register
+  emitter.STGPR(reg_dst, cpu_mode, *result_value);
+
+  AdvancePC(emitter, r15);
+  return Code::Success;
+}
+
 TranslatorT16::Code TranslatorT16::Translate_Unimplemented(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
   return Code::Fallback;
+}
+
+void TranslatorT16::AdvancePC(ir::Emitter& emitter, u32 current_r15) {
+  emitter.STGPR(ir::GPR::PC, ir::Mode::System, emitter.LDCONST(current_r15 + sizeof(u16)));
+}
+
+void TranslatorT16::UpdateFlags(ir::Emitter& emitter, u32 flag_set, const ir::HostFlagsValue& hflag_value) {
+  const ir::U32Value& nzcv_value = emitter.CVT_HFLAG_NZCV(hflag_value);
+  UpdateFlags(emitter, flag_set, nzcv_value);
+}
+
+void TranslatorT16::UpdateFlags(ir::Emitter& emitter, u32 flag_set, const ir::U32Value& nzcv_value) {
+  const ir::U32Value& cpsr_old = emitter.LDCPSR();
+  const ir::U32Value& cpsr_new = emitter.BITCMB(cpsr_old, nzcv_value, flag_set);
+  emitter.STCPSR(cpsr_new);
 }
 
 void TranslatorT16::BuildLUT() {
@@ -52,7 +122,7 @@ TranslatorT16::HandlerFn TranslatorT16::GetInstructionHandler(u16 instruction) {
    */
   DECODE("000110ommmnnnddd", Unimplemented) // Add/subtract register
   DECODE("000111oiiinnnddd", Unimplemented) // Add/subtract immediate
-  DECODE("000ooiiiiimmmddd", Unimplemented) // Shift by immediate
+  DECODE("000ooiiiiimmmddd", ShiftByImmediate) // Shift by immediate
   DECODE("001oonnniiiiiiii", Unimplemented) // Add/subtract/compare/move immediate, NOTE: nnn is nnn and/or ddd
   DECODE("010000oooosssddd", Unimplemented) // Data-processing register, NOTE: sss = Rm/Rs, ddd = Rd/Rn
   DECODE("01000111LYmmmddd", Unimplemented) // Branch/exchange instruction set, Y = H2

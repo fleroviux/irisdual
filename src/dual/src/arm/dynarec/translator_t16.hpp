@@ -19,10 +19,35 @@ class TranslatorT16 {
 
     Code Translate(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
 
+    Code Translate_ShiftByImmediate(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
     Code Translate_Unimplemented(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
 
   private:
     using HandlerFn = Code (TranslatorT16::*)(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
+
+    struct Flags {
+      enum {
+        N = 0x80000000,
+        Z = 0x40000000,
+        C = 0x20000000,
+        V = 0x10000000,
+
+        NZ = N | Z,
+        NZC = N | Z | C,
+        NZCV = N | Z | C | V
+      };
+    };
+
+    enum class Shift {
+      LSL = 0,
+      LSR = 1,
+      ASR = 2,
+      ROR = 3
+    };
+
+    void AdvancePC(ir::Emitter& emitter, u32 current_r15);
+    void UpdateFlags(ir::Emitter& emitter, u32 flag_set, const ir::HostFlagsValue& hflag_value);
+    void UpdateFlags(ir::Emitter& emitter, u32 flag_set, const ir::U32Value& nzcv_value);
 
     void BuildLUT();
 
