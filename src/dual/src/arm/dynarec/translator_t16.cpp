@@ -17,6 +17,8 @@ TranslatorT16::Code TranslatorT16::Translate(u32 r15, ir::Mode cpu_mode, u16 ins
 }
 
 TranslatorT16::Code TranslatorT16::Translate_ShiftByImmediate(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
+  enum class Shift { LSL = 0, LSR = 1, ASR = 2 };
+
   const ir::GPR reg_dst = bit::get_field<u16, ir::GPR>(instruction, 0u, 3u);
   const ir::GPR reg_src = bit::get_field<u16, ir::GPR>(instruction, 3u, 3u);
   const int imm_shift = bit::get_field<u16, int>(instruction, 6u, 5u);
@@ -72,9 +74,11 @@ TranslatorT16::Code TranslatorT16::Translate_ShiftByImmediate(u32 r15, ir::Mode 
 }
 
 TranslatorT16::Code TranslatorT16::Translate_AddSubtract(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
+  enum class Opcode { ADD = 0, SUB = 1 };
+
   const ir::GPR reg_dst = bit::get_field<u16, ir::GPR>(instruction, 0u, 3u);
   const ir::GPR reg_lhs = bit::get_field<u16, ir::GPR>(instruction, 3u, 3u);
-  const int opcode = bit::get_bit(instruction, 9u);
+  const Opcode opcode = bit::get_bit<u16, Opcode>(instruction, 9u);
   const bool immediate = bit::get_bit(instruction, 10u);
 
   const ir::HostFlagsValue* hflag_value;
@@ -90,13 +94,58 @@ TranslatorT16::Code TranslatorT16::Translate_AddSubtract(u32 r15, ir::Mode cpu_m
   }
 
   switch(opcode) {
-    case 0u: result_value = &emitter.ADD(lhs_value, *rhs_value, &hflag_value); break;
-    case 1u: result_value = &emitter.SUB(lhs_value, *rhs_value, &hflag_value); break;
+    case Opcode::ADD: result_value = &emitter.ADD(lhs_value, *rhs_value, &hflag_value); break;
+    case Opcode::SUB: result_value = &emitter.SUB(lhs_value, *rhs_value, &hflag_value); break;
     default: ATOM_UNREACHABLE();
   }
 
   UpdateFlags(emitter, Flags::NZCV, *hflag_value);
   emitter.STGPR(reg_dst, cpu_mode, *result_value);
+
+  AdvancePC(emitter, r15);
+  return Code::Success;
+}
+
+TranslatorT16::Code TranslatorT16::Translate_AddSubCmpMovImm(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
+  enum class Opcode { MOV = 0, CMP = 1, ADD = 2, SUB = 3 };
+
+  const u32 imm = bit::get_field(instruction, 0u, 8u);
+  const ir::GPR reg_dst_lhs = bit::get_field<u16, ir::GPR>(instruction, 8u, 3u);
+  const Opcode opcode = bit::get_field<u16, Opcode>(instruction, 11u, 2u);
+
+  const ir::U32Value& lhs_value = emitter.LDGPR(reg_dst_lhs, cpu_mode);
+  const ir::U32Value& rhs_value = emitter.LDCONST(imm);
+
+  const ir::HostFlagsValue* hflag_value;
+
+  switch(opcode) {
+    case Opcode::MOV: {
+      const ir::U32Value& nzcv_value = emitter.LDCONST(imm == 0u ? 0x40000000u : 0u);
+      UpdateFlags(emitter, Flags::NZ, nzcv_value);
+      emitter.STGPR(reg_dst_lhs, cpu_mode, rhs_value);
+      break;
+    }
+    case Opcode::CMP: {
+      emitter.SUB(lhs_value, rhs_value, &hflag_value);
+      UpdateFlags(emitter, Flags::NZCV, *hflag_value);
+      break;
+    }
+    case Opcode::ADD: {
+      const ir::U32Value& result_value = emitter.ADD(lhs_value, rhs_value, &hflag_value);
+      UpdateFlags(emitter, Flags::NZCV, *hflag_value);
+      emitter.STGPR(reg_dst_lhs, cpu_mode, result_value);
+      break;
+    }
+    case Opcode::SUB: {
+      const ir::U32Value& result_value = emitter.SUB(lhs_value, rhs_value, &hflag_value);
+      UpdateFlags(emitter, Flags::NZCV, *hflag_value);
+      emitter.STGPR(reg_dst_lhs, cpu_mode, result_value);
+      break;
+    }
+    default: {
+      ATOM_UNREACHABLE()
+    }
+  }
 
   AdvancePC(emitter, r15);
   return Code::Success;
@@ -154,7 +203,7 @@ TranslatorT16::HandlerFn TranslatorT16::GetInstructionHandler(u16 instruction) {
   DECODE("000110ommmnnnddd", AddSubtract) // Add/subtract register
   DECODE("000111oiiinnnddd", AddSubtract) // Add/subtract immediate
   DECODE("000ooiiiiimmmddd", ShiftByImmediate) // Shift by immediate
-  DECODE("001oonnniiiiiiii", Unimplemented) // Add/subtract/compare/move immediate, NOTE: nnn is nnn and/or ddd
+  DECODE("001oonnniiiiiiii", AddSubCmpMovImm) // Add/subtract/compare/move immediate, NOTE: nnn is nnn and/or ddd
   DECODE("010000oooosssddd", Unimplemented) // Data-processing register, NOTE: sss = Rm/Rs, ddd = Rd/Rn
   DECODE("01000111LYmmmddd", Unimplemented) // Branch/exchange instruction set, Y = H2
   DECODE("010001ooXYmmmddd", Unimplemented) // Special data processing, X=H1, Y=H2, ddd = Rd/Rn

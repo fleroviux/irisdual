@@ -21,6 +21,7 @@ class TranslatorT16 {
 
     Code Translate_ShiftByImmediate(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
     Code Translate_AddSubtract(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
+    Code Translate_AddSubCmpMovImm(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
     Code Translate_Unimplemented(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
 
   private:
@@ -37,13 +38,6 @@ class TranslatorT16 {
         NZC = N | Z | C,
         NZCV = N | Z | C | V
       };
-    };
-
-    enum class Shift {
-      LSL = 0,
-      LSR = 1,
-      ASR = 2,
-      ROR = 3
     };
 
     void AdvancePC(ir::Emitter& emitter, u32 current_r15);
