@@ -71,7 +71,38 @@ TranslatorT16::Code TranslatorT16::Translate_ShiftByImmediate(u32 r15, ir::Mode 
   return Code::Success;
 }
 
-TranslatorT16::Code TranslatorT16::Translate_Unimplemented(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
+TranslatorT16::Code TranslatorT16::Translate_AddSubtract(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
+  const ir::GPR reg_dst = bit::get_field<u16, ir::GPR>(instruction, 0u, 3u);
+  const ir::GPR reg_lhs = bit::get_field<u16, ir::GPR>(instruction, 3u, 3u);
+  const int opcode = bit::get_bit(instruction, 9u);
+  const bool immediate = bit::get_bit(instruction, 10u);
+
+  const ir::HostFlagsValue* hflag_value;
+  const ir::U32Value* result_value;
+
+  const ir::U32Value& lhs_value = emitter.LDGPR(reg_lhs, cpu_mode);
+
+  const ir::U32Value* rhs_value;
+  if(immediate) {
+    rhs_value = &emitter.LDCONST(bit::get_field<u16, u32>(instruction, 6u, 3u));
+  } else {
+    rhs_value = &emitter.LDGPR(bit::get_field<u16, ir::GPR>(instruction, 6u, 3u), cpu_mode);
+  }
+
+  switch(opcode) {
+    case 0u: result_value = &emitter.ADD(lhs_value, *rhs_value, &hflag_value); break;
+    case 1u: result_value = &emitter.SUB(lhs_value, *rhs_value, &hflag_value); break;
+    default: ATOM_UNREACHABLE();
+  }
+
+  UpdateFlags(emitter, Flags::NZCV, *hflag_value);
+  emitter.STGPR(reg_dst, cpu_mode, *result_value);
+
+  AdvancePC(emitter, r15);
+  return Code::Success;
+}
+
+TranslatorT16::Code TranslatorT16::Translate_Unimplemented(u32, ir::Mode, u16, ir::Emitter&) {
   return Code::Fallback;
 }
 
@@ -120,8 +151,8 @@ TranslatorT16::HandlerFn TranslatorT16::GetInstructionHandler(u16 instruction) {
    * L = link-bit, load-bit
    * R = push r14/pop r15
    */
-  DECODE("000110ommmnnnddd", Unimplemented) // Add/subtract register
-  DECODE("000111oiiinnnddd", Unimplemented) // Add/subtract immediate
+  DECODE("000110ommmnnnddd", AddSubtract) // Add/subtract register
+  DECODE("000111oiiinnnddd", AddSubtract) // Add/subtract immediate
   DECODE("000ooiiiiimmmddd", ShiftByImmediate) // Shift by immediate
   DECODE("001oonnniiiiiiii", Unimplemented) // Add/subtract/compare/move immediate, NOTE: nnn is nnn and/or ddd
   DECODE("010000oooosssddd", Unimplemented) // Data-processing register, NOTE: sss = Rm/Rs, ddd = Rd/Rn

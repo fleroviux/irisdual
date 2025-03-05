@@ -207,6 +207,7 @@ jit::ir::Function* DynarecCPU::TryJit() {
     if(code == TranslatorT16::Code::Success) {
       emitter.EXIT();
       OptimizeFunction(*function);
+      // fmt::print("{:04X}:\n{}\n", instruction, ir::disassemble(*function));
       return function;
     }
   }
