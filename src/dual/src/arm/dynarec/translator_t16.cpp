@@ -142,9 +142,7 @@ TranslatorT16::Code TranslatorT16::Translate_AddSubCmpMovImm(u32 r15, ir::Mode c
       emitter.STGPR(reg_dst_lhs, cpu_mode, result_value);
       break;
     }
-    default: {
-      ATOM_UNREACHABLE()
-    }
+    default: ATOM_UNREACHABLE();
   }
 
   AdvancePC(emitter, r15);
@@ -153,22 +151,10 @@ TranslatorT16::Code TranslatorT16::Translate_AddSubCmpMovImm(u32 r15, ir::Mode c
 
 TranslatorT16::Code TranslatorT16::Translate_DataProcessingReg(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
   enum class Opcode {
-    AND = 0,
-    EOR = 1,
-    LSL = 2,
-    LSR = 3,
-    ASR = 4,
-    ADC = 5,
-    SBC = 6,
-    ROR = 7,
-    TST = 8,
-    NEG = 9,
-    CMP = 10,
-    CMN = 11,
-    ORR = 12,
-    MUL = 13,
-    BIC = 14,
-    MVN = 15
+    AND = 0,  EOR = 1,  LSL = 2,  LSR = 3,
+    ASR = 4,  ADC = 5,  SBC = 6,  ROR = 7,
+    TST = 8,  NEG = 9,  CMP = 10, CMN = 11,
+    ORR = 12, MUL = 13, BIC = 14, MVN = 15
   };
 
   const ir::GPR reg_dst_lhs = bit::get_field<u16, ir::GPR>(instruction, 0u, 3u);
@@ -253,11 +239,77 @@ TranslatorT16::Code TranslatorT16::Translate_DataProcessingReg(u32 r15, ir::Mode
       emitter.STGPR(reg_dst_lhs, cpu_mode, result_value);
       break;
     }
+    default: ATOM_UNREACHABLE();
   }
 
   AdvancePC(emitter, r15);
   return Code::Success;
 }
+
+TranslatorT16::Code TranslatorT16::Translate_SpecialDataProcessing(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
+  enum class Opcode { ADD = 0, CMP = 1, MOV = 2 };
+
+  // TODO(fleroviux): remove the weird PC alignment stuff? Seems potentially unnecessary.
+  // Also simplify pipeline flushes?
+
+  int reg_dst_lhs = bit::get_field(instruction, 0u, 3u);
+  int reg_rhs = bit::get_field(instruction, 3u, 3u);
+  const Opcode opcode = bit::get_field<u16, Opcode>(instruction, 8u, 2u);
+
+  // Instruction may access higher registers r8 - r15 ("Hi register").
+  // This is archieved using two extra bits that displace the register number by 8.
+  if(bit::get_bit(instruction, 7u)) reg_dst_lhs |= 8;
+  if(bit::get_bit(instruction, 6u)) reg_rhs     |= 8;
+
+  const ir::U32Value& lhs_value = emitter.LDGPR((ir::GPR)reg_dst_lhs, cpu_mode);
+
+  const ir::U32Value* rhs_value = &emitter.LDGPR((ir::GPR)reg_rhs, cpu_mode);
+  if(reg_rhs == 15) {
+    rhs_value = &emitter.BIC(*rhs_value, emitter.LDCONST(1u));
+  }
+
+  switch(opcode) {
+    case Opcode::ADD: {
+      const ir::U32Value* result_value = &emitter.ADD(lhs_value, *rhs_value);
+
+      if(reg_dst_lhs == 15) {
+        // Reload pipeline and force-align PC
+        result_value = &emitter.ADD(*result_value, emitter.LDCONST(4u));
+        result_value = &emitter.BIC(*result_value, emitter.LDCONST(1u));
+        emitter.STGPR(ir::GPR::PC, cpu_mode, *result_value);
+      } else {
+        emitter.STGPR((ir::GPR)reg_dst_lhs, cpu_mode, *result_value);
+        AdvancePC(emitter, r15);
+      }
+      break;
+    }
+    case Opcode::CMP: {
+      if(reg_dst_lhs == 15) {
+        ATOM_PANIC("buggy CMP r15 in thumb mode");
+      }
+      const ir::HostFlagsValue* hflag_value;
+      emitter.SUB(lhs_value, *rhs_value, &hflag_value);
+      UpdateFlags(emitter, Flags::NZCV, *hflag_value);
+      AdvancePC(emitter, r15);
+      break;
+    }
+    case Opcode::MOV: {
+      if(reg_dst_lhs == 15) {
+        // Reload pipeline and force-align PC
+        const ir::U32Value& address_value = emitter.BIC(emitter.ADD(*rhs_value, emitter.LDCONST(4u)), emitter.LDCONST(1u));
+        emitter.STGPR(ir::GPR::PC, cpu_mode, address_value);
+      } else {
+        emitter.STGPR((ir::GPR)reg_dst_lhs, cpu_mode, *rhs_value);
+        AdvancePC(emitter, r15);
+      }
+      break;
+    }
+    default: ATOM_UNREACHABLE();
+  }
+
+  return Code::Success;
+}
+
 
 TranslatorT16::Code TranslatorT16::Translate_Unimplemented(u32, ir::Mode, u16, ir::Emitter&) {
   return Code::Fallback;
@@ -314,7 +366,7 @@ TranslatorT16::HandlerFn TranslatorT16::GetInstructionHandler(u16 instruction) {
   DECODE("001oonnniiiiiiii", AddSubCmpMovImm) // Add/subtract/compare/move immediate, NOTE: nnn is nnn and/or ddd
   DECODE("010000oooosssddd", DataProcessingReg) // Data-processing register, NOTE: sss = Rm/Rs, ddd = Rd/Rn
   DECODE("01000111LYmmmddd", Unimplemented) // Branch/exchange instruction set, Y = H2
-  DECODE("010001ooXYmmmddd", Unimplemented) // Special data processing, X=H1, Y=H2, ddd = Rd/Rn
+  DECODE("010001ooXYmmmddd", SpecialDataProcessing) // Special data processing, X=H1, Y=H2, ddd = Rd/Rn
   DECODE("01001dddiiiiiiii", Unimplemented) // Load from literal pool
   DECODE("0101oo0mmmnnnddd", Unimplemented) // Load/store register offset
   DECODE("0101oo1mmmnnnddd", Unimplemented) // Load/store signed, FIXME: merge this with the format above
