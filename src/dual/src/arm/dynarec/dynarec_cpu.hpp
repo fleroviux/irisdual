@@ -15,6 +15,7 @@
 #include "ir/pass.hpp"
 #include "state.hpp"
 #include "translator_a32.hpp"
+#include "translator_t16.hpp"
 
 namespace dual::arm {
 
@@ -68,6 +69,7 @@ class DynarecCPU final : public CPU {
     std::unique_ptr<jit::Backend> m_backend{};
 
     jit::TranslatorA32 m_translator_a32{};
+    jit::TranslatorT16 m_translator_t16{};
     atom::Arena m_tmp_memory_arena{16384u};
     std::vector<std::unique_ptr<jit::ir::Pass>> m_ir_passes{};
 };

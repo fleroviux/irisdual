@@ -13,8 +13,6 @@ TranslatorA32::TranslatorA32() {
 }
 
 TranslatorA32::Code TranslatorA32::Translate(u32 r15, CPU::Mode cpu_mode, u32 instruction, ir::Emitter& emitter) {
-  using namespace ir;
-
   // Bail out on unconditional instructions for now, those need to be handled with special care
   if((instruction >> 28) == 15) {
     return Code::Fallback;
@@ -332,7 +330,7 @@ void TranslatorA32::UpdateFlags(ir::Emitter& emitter, u32 flag_set, const ir::U3
 }
 
 void TranslatorA32::BuildLUT() {
-  for(u32 hash = 0u; hash < 0x1000; hash++) {
+  for(u32 hash = 0u; hash < 0x1000u; hash++) {
     const u32 instruction = (hash & 0xFF0u) << 16 | (hash & 0xFu) << 4;
     m_handler_lut[hash] = GetInstructionHandler(instruction);
   }
@@ -348,13 +346,13 @@ TranslatorA32::HandlerFn TranslatorA32::GetInstructionHandler(u32 instruction) {
   DECODE("cccc00010x00xxxxxxxxxxxx0000xxxx", MRS)            // Move status register to register
   DECODE("cccc00010x10xxxxxxxxxxxx0000xxxx", MSR_reg)        // Move register to status register
   DECODE("cccc00010xx0xxxxxxxxxxxx1xx0xxxx", Unimplemented)  // Enhanced DSP multiplies
-  DECODE("cccc000xxxxxxxxxxxxxxxxxxxx0xxxx", DataProcessing)  // Data Processing (Shift-by-Immediate)
+  DECODE("cccc000xxxxxxxxxxxxxxxxxxxx0xxxx", DataProcessing) // Data Processing (Shift-by-Immediate)
   DECODE("cccc00010010xxxxxxxxxxxx0001xxxx", Unimplemented)  // Branch/exchange instruction set
   DECODE("cccc00010110xxxxxxxxxxxx0001xxxx", Unimplemented)  // Count leading zeros
   DECODE("cccc00010010xxxxxxxxxxxx0011xxxx", Unimplemented)  // Branch and link/exchange instruction set
   DECODE("cccc00010xx0xxxxxxxxxxxx0101xxxx", Unimplemented)  // Enhanced DSP add/subtracts
   DECODE("cccc00010010xxxxxxxxxxxx0111xxxx", Unimplemented)  // Software breakpoint
-  DECODE("cccc000xxxxxxxxxxxxxxxxx0xx1xxxx", DataProcessing)  // Data Processing (Shift-by-Register)
+  DECODE("cccc000xxxxxxxxxxxxxxxxx0xx1xxxx", DataProcessing) // Data Processing (Shift-by-Register)
   DECODE("cccc000000xxxxxxxxxxxxxx1001xxxx", Unimplemented)  // Multiply (accumulate)
   DECODE("cccc00001xxxxxxxxxxxxxxx1001xxxx", Unimplemented)  // Multiply (accumulate) long
   DECODE("cccc00010x00xxxxxxxxxxxx1001xxxx", Unimplemented)  // Swap/swap byte

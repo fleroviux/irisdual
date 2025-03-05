@@ -16,6 +16,7 @@ set(SOURCES
   src/arm/dynarec/dynarec_cpu.cpp
   src/arm/dynarec/state.cpp
   src/arm/dynarec/translator_a32.cpp
+  src/arm/dynarec/translator_t16.cpp
   src/arm/interpreter/tablegen/tablegen.cpp
   src/arm/interpreter/interpreter_cpu.cpp
   src/common/scheduler.cpp
@@ -87,6 +88,7 @@ set(HEADERS
   src/arm/dynarec/dynarec_cpu.hpp
   src/arm/dynarec/state.hpp
   src/arm/dynarec/translator_a32.hpp
+  src/arm/dynarec/translator_t16.hpp
   src/arm/interpreter/handlers/arithmetic.inl
   src/arm/interpreter/handlers/handler16.inl
   src/arm/interpreter/handlers/handler32.inl

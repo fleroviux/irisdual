@@ -174,36 +174,41 @@ jit::ir::Function* DynarecCPU::TryJit() {
   using namespace jit;
 
   static int stupid_counter = 0;
+  if((stupid_counter++ % 10) != 0) {
+    return nullptr;
+  }
 
+  const u32 r15 = m_cpu_state.GetGPR(GPR::PC);
   const PSR cpsr = m_cpu_state.GetCPSR();
+  const Mode cpu_mode = (Mode)cpsr.mode;
+
+  m_tmp_memory_arena.Reset();
+
+  // TODO: implement ir::FunctionBuilder, or something like that.
+  ir::Function* function = new(m_tmp_memory_arena.Allocate(sizeof(ir::Function))) ir::Function{}; // TODO: check failure
+  ir::BasicBlock* bb = new(m_tmp_memory_arena.Allocate(sizeof(ir::BasicBlock))) ir::BasicBlock{0u}; // TODO: check failure
+  function->basic_blocks.push_back(bb);
+
+  ir::Emitter emitter{*bb, m_tmp_memory_arena};
 
   if(cpsr.thumb == 0) {
-    const u32 r15 = m_cpu_state.GetGPR(GPR::PC);
     const u32 instruction = m_memory.ReadWord(r15 - 8u, Memory::Bus::Code);
-    const Mode cpu_mode = (Mode)cpsr.mode;
 
-    if((stupid_counter++ % 10) == 0) {
-      m_tmp_memory_arena.Reset();
-
-      // TODO: implement ir::FunctionBuilder, or something like that.
-      ir::Function* function = new(m_tmp_memory_arena.Allocate(sizeof(ir::Function))) ir::Function{}; // TODO: check failure
-      ir::BasicBlock* bb = new(m_tmp_memory_arena.Allocate(sizeof(ir::BasicBlock))) ir::BasicBlock{0u}; // TODO: check failure
-      function->basic_blocks.push_back(bb);
-
-      ir::Emitter emitter{*bb, m_tmp_memory_arena};
-
-      const TranslatorA32::Code code = m_translator_a32.Translate(r15, cpu_mode, instruction, emitter);
-//      if(bb->head != nullptr) {
-//        fmt::print("IR code:\n{}\n", ir::disassemble(*function));
-//      }
-      if(code == TranslatorA32::Code::Success) {
-        emitter.EXIT();
-        OptimizeFunction(*function);
-        return function;
-      }
+    const TranslatorA32::Code code = m_translator_a32.Translate(r15, cpu_mode, instruction, emitter);
+    if(code == TranslatorA32::Code::Success) {
+      emitter.EXIT();
+      OptimizeFunction(*function);
+      return function;
     }
   } else {
-    // ...
+    const u16 instruction = m_memory.ReadHalf(r15 - 4u, Memory::Bus::Code);
+
+    const TranslatorT16::Code code = m_translator_t16.Translate(r15, cpu_mode, instruction, emitter);
+    if(code == TranslatorT16::Code::Success) {
+      emitter.EXIT();
+      OptimizeFunction(*function);
+      return function;
+    }
   }
 
   return nullptr;
@@ -222,20 +227,6 @@ void DynarecCPU::TestBackend() {
 
   {
     ir::Emitter emitter{*bb_loop, m_tmp_memory_arena};
-
-//    const ir::U32Value& value_r0 = emitter.LDGPR(GPR::R0, Mode::User);
-//    const ir::HostFlagsValue* hflags;
-//    const ir::U32Value& result = emitter.ADD(value_r0, emitter.LDCONST(0xFFFFFFFFu), &hflags);
-//    emitter.STGPR(GPR::R0, Mode::User, result);
-//    emitter.STGPR(GPR::R8, Mode::User, emitter.LDGPR(GPR::R0, Mode::User));
-//    emitter.STGPR(GPR::R0, Mode::User, emitter.LDGPR(GPR::R0, Mode::User));
-//    emitter.STCPSR(emitter.LDCPSR());
-//    emitter.STCPSR(emitter.LDCPSR());
-//    emitter.STSPSR(Mode::IRQ, emitter.LDSPSR(Mode::IRQ));
-//    emitter.STSPSR(Mode::FIQ, emitter.LDSPSR(Mode::FIQ));
-//    emitter.STSPSR(Mode::IRQ, emitter.LDSPSR(Mode::IRQ));
-//    emitter.STSPSR(Mode::FIQ, emitter.LDSPSR(Mode::FIQ));
-//    emitter.BR_IF(ir::Condition::EQ, *hflags, *bb_exit, *bb_loop);
 
     const ir::HostFlagsValue* add_hflags;
     const ir::U32Value& add_result = emitter.ADD(emitter.LDGPR(GPR::R0, Mode::User), emitter.LDCONST(0xFFFFFFFFu), &add_hflags);
