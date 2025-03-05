@@ -83,8 +83,8 @@ namespace dual::nds::arm7 {
 
         const f32 volume  = (f32)control.volume_mul * (1.f / 127.f) * k_volume_div_tab[control.volume_div];
         const f32 panning = (f32)control.panning * (1.f / 128.f);
-        samples[0] += channel.current_sample * volume * (1.f - panning);
-        samples[1] += channel.current_sample * volume * panning;
+//        samples[0] += channel.current_sample * volume * (1.f - panning);
+//        samples[1] += channel.current_sample * volume * panning;
       }
 
       for(f32& sample : samples) sample = std::clamp(sample * master_volume, -1.f, +1.f);

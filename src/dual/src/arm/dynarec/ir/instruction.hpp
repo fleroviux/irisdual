@@ -24,6 +24,7 @@ struct Instruction {
     STSPSR,
 
     // Flag Management
+    // TODO(fleroviux): would a dedicated CVT_CARRY_HFLAG operation have any benefits?
     CVT_HFLAG_NZCV,
     CVT_NZCV_HFLAG,
 
@@ -49,6 +50,9 @@ struct Instruction {
     ORR,
     EOR,
     NOT,
+
+    // Multiplier
+    MUL,
 
     // Other
     BITCMB

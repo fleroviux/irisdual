@@ -16,7 +16,7 @@ TranslatorT16::Code TranslatorT16::Translate(u32 r15, ir::Mode cpu_mode, u16 ins
   return (this->*m_handler_lut[hash])(r15, cpu_mode, instruction, emitter);
 }
 
-TranslatorT16::Code TranslatorT16::Translate_ShiftByImmediate(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
+TranslatorT16::Code TranslatorT16::Translate_ShiftByImm(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
   enum class Shift { LSL = 0, LSR = 1, ASR = 2 };
 
   const ir::GPR reg_dst = bit::get_field<u16, ir::GPR>(instruction, 0u, 3u);
@@ -151,6 +151,114 @@ TranslatorT16::Code TranslatorT16::Translate_AddSubCmpMovImm(u32 r15, ir::Mode c
   return Code::Success;
 }
 
+TranslatorT16::Code TranslatorT16::Translate_DataProcessingReg(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
+  enum class Opcode {
+    AND = 0,
+    EOR = 1,
+    LSL = 2,
+    LSR = 3,
+    ASR = 4,
+    ADC = 5,
+    SBC = 6,
+    ROR = 7,
+    TST = 8,
+    NEG = 9,
+    CMP = 10,
+    CMN = 11,
+    ORR = 12,
+    MUL = 13,
+    BIC = 14,
+    MVN = 15
+  };
+
+  const ir::GPR reg_dst_lhs = bit::get_field<u16, ir::GPR>(instruction, 0u, 3u);
+  const ir::GPR reg_rhs = bit::get_field<u16, ir::GPR>(instruction, 3u, 3u);
+  const Opcode opcode = bit::get_field<u16, Opcode>(instruction, 6u, 4u);
+
+  const ir::HostFlagsValue* hflag_value;
+
+  const ir::U32Value& lhs_value = emitter.LDGPR(reg_dst_lhs, cpu_mode);
+  const ir::U32Value& rhs_value = emitter.LDGPR(reg_rhs, cpu_mode);
+
+  switch(opcode) {
+    case Opcode::AND: {
+      const ir::U32Value& result_value = emitter.AND(lhs_value, rhs_value, &hflag_value);
+      UpdateFlags(emitter, Flags::NZ, *hflag_value);
+      emitter.STGPR(reg_dst_lhs, cpu_mode, result_value);
+      break;
+    }
+    case Opcode::EOR: {
+      const ir::U32Value& result_value = emitter.EOR(lhs_value, rhs_value, &hflag_value);
+      UpdateFlags(emitter, Flags::NZ, *hflag_value);
+      emitter.STGPR(reg_dst_lhs, cpu_mode, result_value);
+      break;
+    }
+    case Opcode::LSL: return Code::Fallback;
+    case Opcode::LSR: return Code::Fallback;
+    case Opcode::ASR: return Code::Fallback;
+    case Opcode::ADC: {
+      const ir::HostFlagsValue& carry_in_value = emitter.CVT_NZCV_HFLAG(emitter.LDCPSR());
+      const ir::U32Value& result_value = emitter.ADC(lhs_value, rhs_value, carry_in_value, &hflag_value);
+      UpdateFlags(emitter, Flags::NZCV, *hflag_value);
+      emitter.STGPR(reg_dst_lhs, cpu_mode, result_value);
+      break;
+    }
+    case Opcode::SBC: {
+      const ir::HostFlagsValue& carry_in_value = emitter.CVT_NZCV_HFLAG(emitter.LDCPSR());
+      const ir::U32Value& result_value = emitter.SBC(lhs_value, rhs_value, carry_in_value, &hflag_value);
+      UpdateFlags(emitter, Flags::NZCV, *hflag_value);
+      emitter.STGPR(reg_dst_lhs, cpu_mode, result_value);
+      break;
+    }
+    case Opcode::ROR: return Code::Fallback;
+    case Opcode::TST: {
+      emitter.AND(lhs_value, rhs_value, &hflag_value);
+      UpdateFlags(emitter, Flags::NZ, *hflag_value);
+      break;
+    }
+    case Opcode::NEG: return Code::Fallback;
+    case Opcode::CMP: {
+      emitter.SUB(lhs_value, rhs_value, &hflag_value);
+      UpdateFlags(emitter, Flags::NZCV, *hflag_value);
+      break;
+    }
+    case Opcode::CMN: {
+      emitter.ADD(lhs_value, rhs_value, &hflag_value);
+      UpdateFlags(emitter, Flags::NZCV, *hflag_value);
+      break;
+    }
+    case Opcode::ORR: {
+      const ir::U32Value& result_value = emitter.ORR(lhs_value, rhs_value, &hflag_value);
+      UpdateFlags(emitter, Flags::NZ, *hflag_value);
+      emitter.STGPR(reg_dst_lhs, cpu_mode, result_value);
+      break;
+    }
+    case Opcode::MUL: {
+      const ir::U32Value& result_value = emitter.MUL(lhs_value, rhs_value);
+      emitter.AND(result_value, result_value, &hflag_value);
+      UpdateFlags(emitter, Flags::NZ, *hflag_value);
+      emitter.STGPR(reg_dst_lhs, cpu_mode, result_value);
+      break;
+    }
+    case Opcode::BIC: {
+      const ir::U32Value& result_value = emitter.BIC(lhs_value, rhs_value, &hflag_value);
+      UpdateFlags(emitter, Flags::NZ, *hflag_value);
+      emitter.STGPR(reg_dst_lhs, cpu_mode, result_value);
+      break;
+    }
+    case Opcode::MVN: {
+      const ir::U32Value& result_value = emitter.NOT(rhs_value);
+      emitter.AND(result_value, result_value, &hflag_value);
+      UpdateFlags(emitter, Flags::NZ, *hflag_value);
+      emitter.STGPR(reg_dst_lhs, cpu_mode, result_value);
+      break;
+    }
+  }
+
+  AdvancePC(emitter, r15);
+  return Code::Success;
+}
+
 TranslatorT16::Code TranslatorT16::Translate_Unimplemented(u32, ir::Mode, u16, ir::Emitter&) {
   return Code::Fallback;
 }
@@ -202,9 +310,9 @@ TranslatorT16::HandlerFn TranslatorT16::GetInstructionHandler(u16 instruction) {
    */
   DECODE("000110ommmnnnddd", AddSubtract) // Add/subtract register
   DECODE("000111oiiinnnddd", AddSubtract) // Add/subtract immediate
-  DECODE("000ooiiiiimmmddd", ShiftByImmediate) // Shift by immediate
+  DECODE("000ooiiiiimmmddd", ShiftByImm) // Shift by immediate
   DECODE("001oonnniiiiiiii", AddSubCmpMovImm) // Add/subtract/compare/move immediate, NOTE: nnn is nnn and/or ddd
-  DECODE("010000oooosssddd", Unimplemented) // Data-processing register, NOTE: sss = Rm/Rs, ddd = Rd/Rn
+  DECODE("010000oooosssddd", DataProcessingReg) // Data-processing register, NOTE: sss = Rm/Rs, ddd = Rd/Rn
   DECODE("01000111LYmmmddd", Unimplemented) // Branch/exchange instruction set, Y = H2
   DECODE("010001ooXYmmmddd", Unimplemented) // Special data processing, X=H1, Y=H2, ddd = Rd/Rn
   DECODE("01001dddiiiiiiii", Unimplemented) // Load from literal pool

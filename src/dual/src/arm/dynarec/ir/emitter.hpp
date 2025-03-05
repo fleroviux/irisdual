@@ -129,6 +129,10 @@ class Emitter {
       return std::get<0>(Emit<U32Value>(Type::NOT, 0u, value));
     }
 
+    const U32Value& MUL(const U32Value& lhs, const U32Value& rhs) {
+      return std::get<0>(Emit<U32Value>(Type::MUL, 0u, lhs, rhs));
+    }
+
     const U32Value& BITCMB(const U32Value& lhs, const U32Value& rhs, const U32Value& mask) {
       return std::get<0>(Emit<U32Value>(Type::BITCMB, 0u, lhs, rhs, mask));
     }
