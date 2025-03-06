@@ -2,6 +2,7 @@
 #pragma once
 
 #include <array>
+#include <algorithm>
 #include <atom/logger/logger.hpp>
 #include <atom/panic.hpp>
 #include <dual/arm/coprocessor.hpp>
