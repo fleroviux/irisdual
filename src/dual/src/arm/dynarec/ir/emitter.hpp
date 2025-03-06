@@ -105,12 +105,20 @@ class Emitter {
       return EmitBinaryALU(Type::SUB, lhs, rhs, hflags_out);
     }
 
+    const HostFlagsValue& CMP(const U32Value& lhs, const U32Value& rhs) {
+      return std::get<1>(Emit<U32Value, HostFlagsValue>(Type::SUB, Flag::OutputHostFlags, lhs, rhs));
+    }
+
     const U32Value& SBC(const U32Value& lhs, const U32Value& rhs, const HostFlagsValue& carry_in, const HostFlagsValue** hflags_out = nullptr) {
       return EmitBinaryALUWithCarry(Type::SBC, lhs, rhs, carry_in, hflags_out);
     }
 
     const U32Value& AND(const U32Value& lhs, const U32Value& rhs, const HostFlagsValue** hflags_out = nullptr) {
       return EmitBinaryALU(Type::AND, lhs, rhs, hflags_out);
+    }
+
+    const HostFlagsValue& TST(const U32Value& lhs, const U32Value& rhs) {
+      return std::get<1>(Emit<U32Value, HostFlagsValue>(Type::AND, Flag::OutputHostFlags, lhs, rhs));
     }
 
     const U32Value& BIC(const U32Value& lhs, const U32Value& rhs, const HostFlagsValue** hflags_out = nullptr) {
@@ -141,8 +149,10 @@ class Emitter {
       return BITCMB(lhs, rhs, LDCONST(mask));
     }
 
-    const U32Value& CSEL(Condition condition, const HostFlagsValue& hflag_value, const U32Value& true_value, const U32Value& false_value) {
-      return std::get<0>(Emit<U32Value>(Type::CSEL, 0u, condition, hflag_value, true_value, false_value));
+    template<typename ValueType>
+    requires std::is_base_of_v<ir::Value, ValueType>
+    const ValueType& CSEL(Condition condition, const HostFlagsValue& hflags, const ValueType& true_value, const ValueType& false_value) {
+      return std::get<0>(Emit<ValueType>(Type::CSEL, 0u, condition, hflags, true_value, false_value));
     }
 
   private:

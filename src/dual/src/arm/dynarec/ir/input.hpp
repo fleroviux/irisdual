@@ -27,7 +27,10 @@ enum class Condition {
   GE = 10,
   LT = 11,
   GT = 12,
-  LE = 13
+  LE = 13,
+
+  HS = CS,
+  LO = CC
 };
 
 class Input {

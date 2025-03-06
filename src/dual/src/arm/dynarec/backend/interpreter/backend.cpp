@@ -101,9 +101,9 @@ void InterpreterBackend::Execute(const ir::Function& function, bool debug) {
 
         // Barrel Shifter
         case InstructionType::LSL: {
-          const u32 value = m_host_regs[instruction->GetArg(0u).AsValue()].data_u32;
+          const u64 value = (u64)m_host_regs[instruction->GetArg(0u).AsValue()].data_u32;
           const u32 shift_amount = m_host_regs[instruction->GetArg(1u).AsValue()].data_u32;
-          if(shift_amount >= 32) {
+          if(shift_amount >= 64) {
             ATOM_PANIC("LSL #{} is UB", shift_amount);
           }
           if(instruction->flags & ir::Instruction::Flag::OutputHostFlags) {
@@ -111,13 +111,14 @@ void InterpreterBackend::Execute(const ir::Function& function, bool debug) {
             if(shift_amount == 0) {
               m_host_regs[hflag_value].data_u32 = 0u;
             } else {
-              m_host_regs[hflag_value].data_u32 = value << (shift_amount - 1) >> 2;
+              m_host_regs[hflag_value].data_u32 = (u32)((u64)value << (shift_amount - 1) >> 2);
             }
           }
-          m_host_regs[instruction->GetOut(0u)].data_u32 = value << shift_amount;
+          m_host_regs[instruction->GetOut(0u)].data_u32 = (u32)((u64)value << shift_amount);
           break;
         }
         case InstructionType::LSR: {
+          // TODO(fleroviux): allow shifts up to 63
           const u32 value = m_host_regs[instruction->GetArg(0u).AsValue()].data_u32;
           const u32 shift_amount = m_host_regs[instruction->GetArg(1u).AsValue()].data_u32;
           if(shift_amount >= 32) {
@@ -135,6 +136,7 @@ void InterpreterBackend::Execute(const ir::Function& function, bool debug) {
           break;
         }
         case InstructionType::ASR: {
+          // TODO(fleroviux): allow shifts up to 63
           const u32 value = m_host_regs[instruction->GetArg(0u).AsValue()].data_u32;
           const u32 shift_amount = m_host_regs[instruction->GetArg(1u).AsValue()].data_u32;
           if(shift_amount >= 32) {
@@ -347,6 +349,7 @@ void InterpreterBackend::Execute(const ir::Function& function, bool debug) {
         case InstructionType::CSEL: {
           const ir::Condition condition = instruction->GetArg(0u).AsCondition();
           const u32 hflag = m_host_regs[instruction->GetArg(1u).AsValue()].data_u32;
+          // TODO(fleroviux): ensure that this does not break (or cause UB) with other data types.
           if(EvaluateCondition(condition, hflag)) {
             m_host_regs[instruction->GetOut(0u)].data_u32 = m_host_regs[instruction->GetArg(2u).AsValue()].data_u32;
           } else {

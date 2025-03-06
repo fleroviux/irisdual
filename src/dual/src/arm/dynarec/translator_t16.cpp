@@ -3,6 +3,8 @@
 
 #include "translator_t16.hpp"
 
+bool screwy = false;
+
 namespace bit = atom::bit;
 
 namespace dual::arm::jit {
@@ -179,7 +181,28 @@ TranslatorT16::Code TranslatorT16::Translate_DataProcessingReg(u32 r15, ir::Mode
       emitter.STGPR(reg_dst_lhs, cpu_mode, result_value);
       break;
     }
-    case Opcode::LSL: return Code::Fallback;
+    case Opcode::LSL: {
+      // amount_value = min(33, (rhs_value & 0xff))
+      const ir::U32Value* amount_value;
+      const ir::U32Value& const_33 = emitter.LDCONST(33);
+      amount_value = &emitter.AND(rhs_value, emitter.LDCONST(255u));
+      amount_value = &emitter.CSEL(ir::Condition::LO, emitter.CMP(*amount_value, const_33), *amount_value, const_33);
+
+      const ir::HostFlagsValue& old_carry_value = emitter.CVT_NZCV_HFLAG(emitter.LDCPSR());
+      const ir::HostFlagsValue* new_carry_value;
+      const ir::U32Value& result_value = emitter.LSL(lhs_value, *amount_value, &new_carry_value);
+
+      // Update NZC flags:
+      // N = sign(result)
+      // Z = result == 0
+      // C = amount == 0 ? old_carry : new_carry
+      UpdateFlags(emitter, Flags::NZ, emitter.TST(result_value, result_value));
+      UpdateFlags(emitter, Flags::C,  emitter.CSEL(ir::Condition::EQ, emitter.TST(*amount_value, *amount_value), old_carry_value, *new_carry_value));
+
+      emitter.STGPR(reg_dst_lhs, cpu_mode, result_value);
+      screwy = true;
+      break;
+    }
     case Opcode::LSR: return Code::Fallback;
     case Opcode::ASR: return Code::Fallback;
     case Opcode::ADC: {
