@@ -141,6 +141,10 @@ class Emitter {
       return BITCMB(lhs, rhs, LDCONST(mask));
     }
 
+    const U32Value& CSEL(Condition condition, const HostFlagsValue& hflag_value, const U32Value& true_value, const U32Value& false_value) {
+      return std::get<0>(Emit<U32Value>(Type::CSEL, 0u, condition, hflag_value, true_value, false_value));
+    }
+
   private:
     using Type = Instruction::Type;
     using Flag = Instruction::Flag;

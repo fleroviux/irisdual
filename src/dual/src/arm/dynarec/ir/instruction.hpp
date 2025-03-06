@@ -55,7 +55,8 @@ struct Instruction {
     MUL,
 
     // Other
-    BITCMB
+    BITCMB,
+    CSEL
   };
 
   enum Flag : u16 {

@@ -344,6 +344,16 @@ void InterpreterBackend::Execute(const ir::Function& function, bool debug) {
           m_host_regs[result_value].data_u32 = lhs & ~mask | rhs & mask;
           break;
         }
+        case InstructionType::CSEL: {
+          const ir::Condition condition = instruction->GetArg(0u).AsCondition();
+          const u32 hflag = m_host_regs[instruction->GetArg(1u).AsValue()].data_u32;
+          if(EvaluateCondition(condition, hflag)) {
+            m_host_regs[instruction->GetOut(0u)].data_u32 = m_host_regs[instruction->GetArg(2u).AsValue()].data_u32;
+          } else {
+            m_host_regs[instruction->GetOut(0u)].data_u32 = m_host_regs[instruction->GetArg(3u).AsValue()].data_u32;
+          }
+          break;
+        }
 
         default: {
           ATOM_PANIC("unhandled IR instruction type: {}", (int)instruction->type);
