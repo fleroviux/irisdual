@@ -217,7 +217,12 @@ TranslatorT16::Code TranslatorT16::Translate_DataProcessingReg(u32 r15, ir::Mode
       UpdateFlags(emitter, Flags::NZ, emitter.TST(lhs_value, rhs_value));
       break;
     }
-    case Opcode::NEG: return Code::Fallback;
+    case Opcode::NEG: {
+      const ir::U32Value& result_value = emitter.SUB(emitter.LDCONST(0u), rhs_value, &hflag_value);
+      UpdateFlags(emitter, Flags::NZCV, *hflag_value);
+      emitter.STGPR(reg_dst_lhs, cpu_mode, result_value);
+      return Code::Fallback;
+    }
     case Opcode::CMP: {
       UpdateFlags(emitter, Flags::NZCV, emitter.CMP(lhs_value, rhs_value));
       break;
