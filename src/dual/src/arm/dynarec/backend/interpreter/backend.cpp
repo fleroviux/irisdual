@@ -151,6 +151,24 @@ void InterpreterBackend::Execute(const ir::Function& function, bool debug) {
           m_host_regs[instruction->GetOut(0u)].data_u32 = (u32)(value >> shift_amount);
           break;
         }
+        case InstructionType::ROR: {
+          const u32 value = m_host_regs[instruction->GetArg(0u).AsValue()].data_u32;
+          const u32 shift_amount = m_host_regs[instruction->GetArg(1u).AsValue()].data_u32;
+          if(shift_amount >= 32) {
+            ATOM_PANIC("ROR #{} is UB", shift_amount);
+          }
+          const u32 result = value >> shift_amount | value << ((32 - shift_amount) & 31);
+          if(instruction->flags & ir::Instruction::Flag::OutputHostFlags) {
+            const ir::Value::ID hflag_value = instruction->GetOut(1u);
+            if(shift_amount == 0) {
+              m_host_regs[hflag_value].data_u32 = 0u;
+            } else {
+              m_host_regs[hflag_value].data_u32 = result >> 31;
+            }
+          }
+          m_host_regs[instruction->GetOut(0u)].data_u32 = result;
+          break;
+        }
 
         // Data Processing
         case InstructionType::ADD: {

@@ -235,7 +235,6 @@ TranslatorT16::Code TranslatorT16::Translate_DataProcessingReg(u32 r15, ir::Mode
       UpdateFlags(emitter, Flags::C,  emitter.CSEL(ir::Condition::EQ, emitter.TST(*amount_value, *amount_value), old_carry_value, *new_carry_value));
 
       emitter.STGPR(reg_dst_lhs, cpu_mode, result_value);
-      debug_print_ir = true;
       break;
     }
     case Opcode::ADC: {
@@ -252,7 +251,24 @@ TranslatorT16::Code TranslatorT16::Translate_DataProcessingReg(u32 r15, ir::Mode
       emitter.STGPR(reg_dst_lhs, cpu_mode, result_value);
       break;
     }
-    case Opcode::ROR: return Code::Fallback;
+    case Opcode::ROR: {
+      const ir::U32Value& amount_value = emitter.AND(rhs_value, emitter.LDCONST(31u));
+
+      const ir::HostFlagsValue& old_carry_value = emitter.CVT_NZCV_HFLAG(emitter.LDCPSR());
+      const ir::HostFlagsValue* new_carry_value;
+      const ir::U32Value& result_value = emitter.ROR(lhs_value, amount_value, &new_carry_value);
+
+      // Update NZC flags:
+      // N = sign(result)
+      // Z = result == 0
+      // C = amount == 0 ? old_carry : new_carry
+      UpdateFlags(emitter, Flags::NZ, emitter.TST(result_value, result_value));
+      UpdateFlags(emitter, Flags::C,  emitter.CSEL(ir::Condition::EQ, emitter.TST(amount_value, amount_value), old_carry_value, *new_carry_value));
+
+      emitter.STGPR(reg_dst_lhs, cpu_mode, result_value);
+      debug_print_ir = true;
+      break;
+    };
     case Opcode::TST: {
       UpdateFlags(emitter, Flags::NZ, emitter.TST(lhs_value, rhs_value));
       break;
