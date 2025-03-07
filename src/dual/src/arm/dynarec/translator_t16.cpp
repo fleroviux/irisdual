@@ -30,27 +30,27 @@ TranslatorT16::Code TranslatorT16::Translate_ShiftByImm(u32 r15, ir::Mode cpu_mo
   const ir::U32Value* result_value = &src_value;
 
   // TODO(fleroviux): turn this into a reusable function
-  const ir::HostFlagsValue* carry_out_value;
+  const ir::HostFlagsValue* hflag_value;
   switch(shift_op) {
     case Shift::LSL: {
       if(imm_shift != 0) {
-        result_value = &emitter.LSL(src_value, emitter.LDCONST((u32)imm_shift), &carry_out_value);
-        UpdateFlags(emitter, Flags::C, *carry_out_value);
+        result_value = &emitter.LSL(src_value, emitter.LDCONST((u32)imm_shift), &hflag_value);
+        UpdateFlags(emitter, Flags::C, *hflag_value);
       }
       break;
     }
     case Shift::LSR: {
       // LSR #32 is encoded as LSR #0
       const u32 shift_amount = imm_shift == 0 ? 32 : imm_shift;
-      result_value = &emitter.LSR(src_value, emitter.LDCONST(shift_amount), &carry_out_value);
-      UpdateFlags(emitter, Flags::C, *carry_out_value);
+      result_value = &emitter.LSR(src_value, emitter.LDCONST(shift_amount), &hflag_value);
+      UpdateFlags(emitter, Flags::C, *hflag_value);
       break;
     }
     case Shift::ASR: {
       // ASR #32 is encoded as ASR #0
       const u32 shift_amount = imm_shift == 0 ? 32 : imm_shift;
-      result_value = &emitter.ASR(src_value, emitter.LDCONST(shift_amount), &carry_out_value);
-      UpdateFlags(emitter, Flags::C, *carry_out_value);
+      result_value = &emitter.ASR(src_value, emitter.LDCONST(shift_amount), &hflag_value);
+      UpdateFlags(emitter, Flags::C, *hflag_value);
       break;
     }
     default: {
@@ -60,9 +60,7 @@ TranslatorT16::Code TranslatorT16::Translate_ShiftByImm(u32 r15, ir::Mode cpu_mo
   }
 
   // Update NZ flags
-  const ir::HostFlagsValue* hflag_value;
-  emitter.AND(*result_value, *result_value, &hflag_value);
-  UpdateFlags(emitter, Flags::NZ, *hflag_value);
+  UpdateFlags(emitter, Flags::NZ, emitter.TST(*result_value, *result_value));
 
   // Store the result in the destination register
   emitter.STGPR(reg_dst, cpu_mode, *result_value);
@@ -124,8 +122,7 @@ TranslatorT16::Code TranslatorT16::Translate_AddSubCmpMovImm(u32 r15, ir::Mode c
       break;
     }
     case Opcode::CMP: {
-      emitter.SUB(lhs_value, rhs_value, &hflag_value);
-      UpdateFlags(emitter, Flags::NZCV, *hflag_value);
+      UpdateFlags(emitter, Flags::NZCV, emitter.CMP(lhs_value, rhs_value));
       break;
     }
     case Opcode::ADD: {
@@ -217,19 +214,16 @@ TranslatorT16::Code TranslatorT16::Translate_DataProcessingReg(u32 r15, ir::Mode
     }
     case Opcode::ROR: return Code::Fallback;
     case Opcode::TST: {
-      emitter.AND(lhs_value, rhs_value, &hflag_value);
-      UpdateFlags(emitter, Flags::NZ, *hflag_value);
+      UpdateFlags(emitter, Flags::NZ, emitter.TST(lhs_value, rhs_value));
       break;
     }
     case Opcode::NEG: return Code::Fallback;
     case Opcode::CMP: {
-      emitter.SUB(lhs_value, rhs_value, &hflag_value);
-      UpdateFlags(emitter, Flags::NZCV, *hflag_value);
+      UpdateFlags(emitter, Flags::NZCV, emitter.CMP(lhs_value, rhs_value));
       break;
     }
     case Opcode::CMN: {
-      emitter.ADD(lhs_value, rhs_value, &hflag_value);
-      UpdateFlags(emitter, Flags::NZCV, *hflag_value);
+      UpdateFlags(emitter, Flags::NZCV, emitter.CMN(lhs_value, rhs_value));
       break;
     }
     case Opcode::ORR: {
@@ -253,8 +247,7 @@ TranslatorT16::Code TranslatorT16::Translate_DataProcessingReg(u32 r15, ir::Mode
     }
     case Opcode::MVN: {
       const ir::U32Value& result_value = emitter.NOT(rhs_value);
-      emitter.AND(result_value, result_value, &hflag_value);
-      UpdateFlags(emitter, Flags::NZ, *hflag_value);
+      UpdateFlags(emitter, Flags::NZ, emitter.TST(result_value, result_value));
       emitter.STGPR(reg_dst_lhs, cpu_mode, result_value);
       break;
     }
