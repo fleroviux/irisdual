@@ -111,17 +111,16 @@ void InterpreterBackend::Execute(const ir::Function& function, bool debug) {
             if(shift_amount == 0) {
               m_host_regs[hflag_value].data_u32 = 0u;
             } else {
-              m_host_regs[hflag_value].data_u32 = (u32)((u64)value << (shift_amount - 1) >> 2);
+              m_host_regs[hflag_value].data_u32 = (u32)(value << (shift_amount - 1) >> 2);
             }
           }
-          m_host_regs[instruction->GetOut(0u)].data_u32 = (u32)((u64)value << shift_amount);
+          m_host_regs[instruction->GetOut(0u)].data_u32 = (u32)(value << shift_amount);
           break;
         }
         case InstructionType::LSR: {
-          // TODO(fleroviux): allow shifts up to 63
-          const u32 value = m_host_regs[instruction->GetArg(0u).AsValue()].data_u32;
+          const u64 value = (u64)m_host_regs[instruction->GetArg(0u).AsValue()].data_u32;
           const u32 shift_amount = m_host_regs[instruction->GetArg(1u).AsValue()].data_u32;
-          if(shift_amount >= 32) {
+          if(shift_amount >= 64) {
             ATOM_PANIC("LSR #{} is UB", shift_amount);
           }
           if(instruction->flags & ir::Instruction::Flag::OutputHostFlags) {
@@ -129,17 +128,16 @@ void InterpreterBackend::Execute(const ir::Function& function, bool debug) {
             if(shift_amount == 0) {
               m_host_regs[hflag_value].data_u32 = 0u;
             } else {
-              m_host_regs[hflag_value].data_u32 = value >> (shift_amount - 1) << 29;
+              m_host_regs[hflag_value].data_u32 = (u32)(value >> (shift_amount - 1) << 29);
             }
           }
           m_host_regs[instruction->GetOut(0u)].data_u32 = value >> shift_amount;
           break;
         }
         case InstructionType::ASR: {
-          // TODO(fleroviux): allow shifts up to 63
-          const u32 value = m_host_regs[instruction->GetArg(0u).AsValue()].data_u32;
+          const i64 value = (i64)(i32)m_host_regs[instruction->GetArg(0u).AsValue()].data_u32;
           const u32 shift_amount = m_host_regs[instruction->GetArg(1u).AsValue()].data_u32;
-          if(shift_amount >= 32) {
+          if(shift_amount >= 64) {
             ATOM_PANIC("ASR #{} is UB", shift_amount);
           }
           if(instruction->flags & ir::Instruction::Flag::OutputHostFlags) {
@@ -147,10 +145,10 @@ void InterpreterBackend::Execute(const ir::Function& function, bool debug) {
             if(shift_amount == 0) {
               m_host_regs[hflag_value].data_u32 = 0u;
             } else {
-              m_host_regs[hflag_value].data_u32 = value >> (shift_amount - 1) << 29;
+              m_host_regs[hflag_value].data_u32 = (u32)(value >> (shift_amount - 1) << 29);
             }
           }
-          m_host_regs[instruction->GetOut(0u)].data_u32 = (u32)((i32)value >> shift_amount);
+          m_host_regs[instruction->GetOut(0u)].data_u32 = (u32)(value >> shift_amount);
           break;
         }
 
@@ -164,9 +162,6 @@ void InterpreterBackend::Execute(const ir::Function& function, bool debug) {
 
           if(instruction->flags & ir::Instruction::Flag::OutputHostFlags) {
             const ir::Value::ID hflag_value = instruction->GetOut(1u);
-  //          const bool n_flag = result & 0x80000000u;
-  //          const bool z_flag = result == 0u;
-  //          const bool c_flag = result < lhs;
             const bool v_flag = (~(lhs ^ rhs) & (result ^ lhs)) >> 31;
 
             u32 nzcv_value = result & 0x80000000u;
@@ -349,11 +344,29 @@ void InterpreterBackend::Execute(const ir::Function& function, bool debug) {
         case InstructionType::CSEL: {
           const ir::Condition condition = instruction->GetArg(0u).AsCondition();
           const u32 hflag = m_host_regs[instruction->GetArg(1u).AsValue()].data_u32;
-          // TODO(fleroviux): ensure that this does not break (or cause UB) with other data types.
+
+          const auto CopyValue = [&](ir::Value::ID dst, ir::Value::ID src) {
+            const ir::Value::DataType dst_type = basic_block.values[dst]->data_type;
+            const ir::Value::DataType src_type = basic_block.values[src]->data_type;
+            if(src_type != dst_type) {
+              ATOM_PANIC("src and dst value must have the same data type");
+            }
+            switch(dst_type) {
+              case ir::Value::DataType::U32:
+              case ir::Value::DataType::HostFlags: {
+                m_host_regs[dst].data_u32 = m_host_regs[src].data_u32;
+                break;
+              }
+              default: {
+                ATOM_PANIC("unhandled value data type: {}", (int)dst_type);
+              }
+            }
+          };
+
           if(EvaluateCondition(condition, hflag)) {
-            m_host_regs[instruction->GetOut(0u)].data_u32 = m_host_regs[instruction->GetArg(2u).AsValue()].data_u32;
+            CopyValue(instruction->GetOut(0u), instruction->GetArg(2u).AsValue());
           } else {
-            m_host_regs[instruction->GetOut(0u)].data_u32 = m_host_regs[instruction->GetArg(3u).AsValue()].data_u32;
+            CopyValue(instruction->GetOut(0u), instruction->GetArg(3u).AsValue());
           }
           break;
         }

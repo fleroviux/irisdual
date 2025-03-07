@@ -9,7 +9,7 @@
 #include "ir/disassemble.hpp"
 #include "dynarec_cpu.hpp"
 
-extern bool screwy;
+extern bool debug_print_ir;
 
 namespace dual::arm {
 
@@ -209,9 +209,9 @@ jit::ir::Function* DynarecCPU::TryJit() {
     if(code == TranslatorT16::Code::Success) {
       emitter.EXIT();
       OptimizeFunction(*function);
-      if(screwy) {
+      if(debug_print_ir) {
         fmt::print("{:04X}:\n{}\n", instruction, ir::disassemble(*function));
-        screwy = false;
+        debug_print_ir = false;
       }
       return function;
     }

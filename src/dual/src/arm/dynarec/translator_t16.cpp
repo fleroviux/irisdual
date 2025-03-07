@@ -3,7 +3,7 @@
 
 #include "translator_t16.hpp"
 
-bool screwy = false;
+bool debug_print_ir = false;
 
 namespace bit = atom::bit;
 
@@ -41,19 +41,15 @@ TranslatorT16::Code TranslatorT16::Translate_ShiftByImm(u32 r15, ir::Mode cpu_mo
     }
     case Shift::LSR: {
       // LSR #32 is encoded as LSR #0
-      if(imm_shift == 0) {
-        ATOM_PANIC("unhandled LSR #32");
-      }
-      result_value = &emitter.LSR(src_value, emitter.LDCONST((u32)imm_shift), &carry_out_value);
+      const u32 shift_amount = imm_shift == 0 ? 32 : imm_shift;
+      result_value = &emitter.LSR(src_value, emitter.LDCONST(shift_amount), &carry_out_value);
       UpdateFlags(emitter, Flags::C, *carry_out_value);
       break;
     }
     case Shift::ASR: {
       // ASR #32 is encoded as ASR #0
-      if(imm_shift == 0) {
-        ATOM_PANIC("unhandled ASR #32");
-      }
-      result_value = &emitter.ASR(src_value, emitter.LDCONST((u32)imm_shift), &carry_out_value);
+      const u32 shift_amount = imm_shift == 0 ? 32 : imm_shift;
+      result_value = &emitter.ASR(src_value, emitter.LDCONST(shift_amount), &carry_out_value);
       UpdateFlags(emitter, Flags::C, *carry_out_value);
       break;
     }
@@ -200,7 +196,7 @@ TranslatorT16::Code TranslatorT16::Translate_DataProcessingReg(u32 r15, ir::Mode
       UpdateFlags(emitter, Flags::C,  emitter.CSEL(ir::Condition::EQ, emitter.TST(*amount_value, *amount_value), old_carry_value, *new_carry_value));
 
       emitter.STGPR(reg_dst_lhs, cpu_mode, result_value);
-      screwy = true;
+      debug_print_ir = true;
       break;
     }
     case Opcode::LSR: return Code::Fallback;
