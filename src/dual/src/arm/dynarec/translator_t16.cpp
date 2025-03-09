@@ -525,9 +525,29 @@ TranslatorT16::Code TranslatorT16::Translate_AddToSPOrPC(u32 r15, ir::Mode cpu_m
   const u32 imm_rhs = bit::get_field(instruction, 0u, 8u);
   const ir::GPR reg_dst = bit::get_field<u16, ir::GPR>(instruction, 8u, 3u);
 
-  const ir::U32Value& lhs_value = emitter.LDGPR(bit::get_bit(instruction, 11u) ? ir::GPR::SP : ir::GPR::PC, cpu_mode);
+  // TODO(fleroviux): test if bit 1 of R15 really is forced to zero and on what processor models?
+  const ir::U32Value& lhs_value = bit::get_bit(instruction, 11u) ?  emitter.LDGPR(ir::GPR::SP, cpu_mode) : emitter.LDCONST(r15 & ~2);
   const ir::U32Value& rhs_value = emitter.LDCONST(imm_rhs * sizeof(u32));
   emitter.STGPR(reg_dst, cpu_mode, emitter.ADD(lhs_value, rhs_value));
+
+  AdvancePC(emitter, r15);
+  return Code::Success;
+}
+
+TranslatorT16::Code TranslatorT16::Translate_AdjustStackPointer(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
+  enum class Opcode { ADD = 0, SUB = 1 };
+
+  const u32 imm_rhs = bit::get_field(instruction, 0u, 7u);
+  const Opcode opcode = bit::get_bit<u16, Opcode>(instruction, 7u);
+
+  const ir::U32Value& lhs_value = emitter.LDGPR(ir::GPR::SP, cpu_mode);
+  const ir::U32Value& rhs_value = emitter.LDCONST(imm_rhs * sizeof(u32));
+
+  switch(opcode) {
+    case Opcode::ADD: emitter.STGPR(ir::GPR::SP, cpu_mode, emitter.ADD(lhs_value, rhs_value)); break;
+    case Opcode::SUB: emitter.STGPR(ir::GPR::SP, cpu_mode, emitter.SUB(lhs_value, rhs_value)); break;
+    default: ATOM_UNREACHABLE();
+  }
 
   AdvancePC(emitter, r15);
   return Code::Success;
@@ -595,7 +615,7 @@ TranslatorT16::HandlerFn TranslatorT16::GetInstructionHandler(u16 instruction) {
   DECODE("1000Liiiiinnnddd", LoadStoreHalfImmOffset) // Load/store halfword immediate offset
   DECODE("1001Ldddiiiiiiii", LoadStoreToFromStack) // Load/store to/from stack
   DECODE("1010Xdddiiiiiiii", AddToSPOrPC) // Add to SP or PC, X = SP
-  DECODE("10110000oiiiiiii", Unimplemented) // Adjust stack pointer
+  DECODE("10110000oiiiiiii", AdjustStackPointer) // Adjust stack pointer
   DECODE("1011L10Rrrrrrrrr", Unimplemented) // Push/pop register list
   DECODE("10111110iiiiiiii", Unimplemented) // Software breakpoint
   DECODE("1100Lnnnrrrrrrrr", Unimplemented) // Load/store multiple
