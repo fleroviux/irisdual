@@ -521,6 +521,18 @@ TranslatorT16::Code TranslatorT16::Translate_LoadStoreToFromStack(u32 r15, ir::M
   return Code::Success;
 }
 
+TranslatorT16::Code TranslatorT16::Translate_AddToSPOrPC(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
+  const u32 imm_rhs = bit::get_field(instruction, 0u, 8u);
+  const ir::GPR reg_dst = bit::get_field<u16, ir::GPR>(instruction, 8u, 3u);
+
+  const ir::U32Value& lhs_value = emitter.LDGPR(bit::get_bit(instruction, 11u) ? ir::GPR::SP : ir::GPR::PC, cpu_mode);
+  const ir::U32Value& rhs_value = emitter.LDCONST(imm_rhs * sizeof(u32));
+  emitter.STGPR(reg_dst, cpu_mode, emitter.ADD(lhs_value, rhs_value));
+
+  AdvancePC(emitter, r15);
+  return Code::Success;
+}
+
 TranslatorT16::Code TranslatorT16::Translate_Unimplemented(u32, ir::Mode, u16, ir::Emitter&) {
   return Code::Fallback;
 }
@@ -582,7 +594,7 @@ TranslatorT16::HandlerFn TranslatorT16::GetInstructionHandler(u16 instruction) {
   DECODE("011BLiiiiinnnddd", LoadStoreWordByteImmOffset) // Load/store word/byte immediate offset
   DECODE("1000Liiiiinnnddd", LoadStoreHalfImmOffset) // Load/store halfword immediate offset
   DECODE("1001Ldddiiiiiiii", LoadStoreToFromStack) // Load/store to/from stack
-  DECODE("1010Xdddiiiiiiii", Unimplemented) // Add to SP or PC, X = SP
+  DECODE("1010Xdddiiiiiiii", AddToSPOrPC) // Add to SP or PC, X = SP
   DECODE("10110000oiiiiiii", Unimplemented) // Adjust stack pointer
   DECODE("1011L10Rrrrrrrrr", Unimplemented) // Push/pop register list
   DECODE("10111110iiiiiiii", Unimplemented) // Software breakpoint

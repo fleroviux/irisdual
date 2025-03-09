@@ -29,6 +29,7 @@ class TranslatorT16 {
     Code Translate_LoadStoreWordByteImmOffset(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
     Code Translate_LoadStoreHalfImmOffset(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
     Code Translate_LoadStoreToFromStack(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
+    Code Translate_AddToSPOrPC(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
     Code Translate_Unimplemented(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
 
   private:
