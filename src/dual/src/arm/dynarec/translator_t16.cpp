@@ -504,6 +504,23 @@ TranslatorT16::Code TranslatorT16::Translate_LoadStoreHalfImmOffset(u32 r15, ir:
   return Code::Success;
 }
 
+TranslatorT16::Code TranslatorT16::Translate_LoadStoreToFromStack(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
+  const u32 imm_offset = bit::get_field(instruction, 0u, 8u);
+  const ir::GPR reg_src_dst = bit::get_field<u16, ir::GPR>(instruction, 8u, 3u);
+
+  const ir::U32Value& address_value = emitter.ADD(emitter.LDGPR(ir::GPR::SP, cpu_mode), emitter.LDCONST(imm_offset * sizeof(u32)));
+
+  if(bit::get_bit(instruction, 11u)) {
+    // TODO(fleroviux): implement rotate for ARM7
+    emitter.STGPR(reg_src_dst, cpu_mode, emitter.LDR(address_value));
+  } else {
+    emitter.STR(address_value, emitter.LDGPR(reg_src_dst, cpu_mode));
+  }
+
+  AdvancePC(emitter, r15);
+  return Code::Success;
+}
+
 TranslatorT16::Code TranslatorT16::Translate_Unimplemented(u32, ir::Mode, u16, ir::Emitter&) {
   return Code::Fallback;
 }
@@ -564,7 +581,7 @@ TranslatorT16::HandlerFn TranslatorT16::GetInstructionHandler(u16 instruction) {
   DECODE("0101ooommmnnnddd", LoadStoreRegOffset) // Load/store register offset
   DECODE("011BLiiiiinnnddd", LoadStoreWordByteImmOffset) // Load/store word/byte immediate offset
   DECODE("1000Liiiiinnnddd", LoadStoreHalfImmOffset) // Load/store halfword immediate offset
-  DECODE("1001Ldddiiiiiiii", Unimplemented) // Load/store to/from stack
+  DECODE("1001Ldddiiiiiiii", LoadStoreToFromStack) // Load/store to/from stack
   DECODE("1010Xdddiiiiiiii", Unimplemented) // Add to SP or PC, X = SP
   DECODE("10110000oiiiiiii", Unimplemented) // Adjust stack pointer
   DECODE("1011L10Rrrrrrrrr", Unimplemented) // Push/pop register list
