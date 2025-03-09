@@ -443,6 +443,44 @@ TranslatorT16::Code TranslatorT16::Translate_LoadStoreRegOffset(u32 r15, ir::Mod
   return Code::Success;
 }
 
+TranslatorT16::Code TranslatorT16::Translate_LoadStoreWordByteImmOffset(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
+  enum class Opcode { STR = 0, LDR = 1, STRB = 2, LDRB = 3 };
+
+  const ir::GPR reg_src_dst = bit::get_field<u16, ir::GPR>(instruction, 0u, 3u);
+  const ir::GPR reg_base = bit::get_field<u16, ir::GPR>(instruction, 3u, 3u);
+  const u32 imm_offset = bit::get_field(instruction, 6u, 5u);
+  const Opcode opcode = bit::get_field<u16, Opcode>(instruction, 11u, 2u);
+
+  const ir::U32Value& base_address_value = emitter.LDGPR(reg_base, cpu_mode);
+
+  switch(opcode) {
+    case Opcode::STR: {
+      const ir::U32Value& address_value = emitter.ADD(base_address_value, emitter.LDCONST(imm_offset * sizeof(u32)));
+      emitter.STR(address_value, emitter.LDGPR(reg_src_dst, cpu_mode));
+      break;
+    }
+    case Opcode::LDR: {
+      const ir::U32Value& address_value = emitter.ADD(base_address_value, emitter.LDCONST(imm_offset * sizeof(u32)));
+      emitter.STGPR(reg_src_dst, cpu_mode, emitter.LDR(address_value));
+      break;
+    }
+    case Opcode::STRB: {
+      const ir::U32Value& address_value = emitter.ADD(base_address_value, emitter.LDCONST(imm_offset));
+      emitter.STRB(address_value, emitter.LDGPR(reg_src_dst, cpu_mode));
+      break;
+    }
+    case Opcode::LDRB: {
+      const ir::U32Value& address_value = emitter.ADD(base_address_value, emitter.LDCONST(imm_offset));
+      emitter.STGPR(reg_src_dst, cpu_mode, emitter.LDRB(address_value));
+      break;
+    }
+    default: ATOM_UNREACHABLE();
+  }
+
+  AdvancePC(emitter, r15);
+  return Code::Success;
+}
+
 TranslatorT16::Code TranslatorT16::Translate_Unimplemented(u32, ir::Mode, u16, ir::Emitter&) {
   return Code::Fallback;
 }
@@ -501,7 +539,7 @@ TranslatorT16::HandlerFn TranslatorT16::GetInstructionHandler(u16 instruction) {
   DECODE("010001ooXYmmmddd", SpecialDataProcessing) // Special data processing, X=H1, Y=H2, ddd = Rd/Rn
   DECODE("01001dddiiiiiiii", LoadFromLiteralPool) // Load from literal pool
   DECODE("0101ooommmnnnddd", LoadStoreRegOffset) // Load/store register offset
-  DECODE("011BLiiiiinnnddd", Unimplemented) // Load/store word/byte immediate offset
+  DECODE("011BLiiiiinnnddd", LoadStoreWordByteImmOffset) // Load/store word/byte immediate offset
   DECODE("1000Liiiiinnnddd", Unimplemented) // Load/store halfword immediate offset
   DECODE("1001Ldddiiiiiiii", Unimplemented) // Load/store to/from stack
   DECODE("1010Xdddiiiiiiii", Unimplemented) // Add to SP or PC, X = SP

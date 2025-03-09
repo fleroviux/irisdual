@@ -26,6 +26,7 @@ class TranslatorT16 {
     Code Translate_SpecialDataProcessing(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
     Code Translate_LoadFromLiteralPool(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
     Code Translate_LoadStoreRegOffset(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
+    Code Translate_LoadStoreWordByteImmOffset(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
     Code Translate_Unimplemented(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
 
   private:
