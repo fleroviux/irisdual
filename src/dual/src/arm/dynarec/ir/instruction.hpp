@@ -54,13 +54,20 @@ struct Instruction {
     // Multiplier
     MUL,
 
+    // Memory Access
+    LDR,
+    STR,
+
     // Other
     BITCMB,
     CSEL
   };
 
   enum Flag : u16 {
-    OutputHostFlags = 1 << 0
+    OutputHostFlags = 1 << 0,
+    Word = 1 << 1,
+    Half = 1 << 2,
+    Byte = 1 << 3,
   };
 
   static constexpr size_t max_arg_slots = 4u;

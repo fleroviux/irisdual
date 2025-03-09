@@ -75,6 +75,9 @@ std::string disassemble(const Instruction& instruction) {
   if(instruction.flags) {
     disassembled_code += ".";
     if(instruction.flags & Instruction::Flag::OutputHostFlags) disassembled_code += "s";
+    if(instruction.flags & Instruction::Flag::Word) disassembled_code += "w";
+    if(instruction.flags & Instruction::Flag::Half) disassembled_code += "h";
+    if(instruction.flags & Instruction::Flag::Byte) disassembled_code += "b";
   }
   disassembled_code += " ";
 
@@ -153,6 +156,8 @@ static const char* get_instruction_mnemonic(Instruction::Type type) {
     case Instruction::Type::EOR:    return "eor";
     case Instruction::Type::NOT:    return "not";
     case Instruction::Type::MUL:    return "mul";
+    case Instruction::Type::LDR:    return "ldr";
+    case Instruction::Type::STR:    return "str";
     case Instruction::Type::BITCMB: return "bitcmb";
     case Instruction::Type::CSEL:   return "csel";
     default: ATOM_PANIC("unhandled instruction type: {}", (int)type);

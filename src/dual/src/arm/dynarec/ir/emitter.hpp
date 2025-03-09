@@ -145,6 +145,30 @@ class Emitter {
       return std::get<0>(Emit<U32Value>(Type::MUL, 0u, lhs, rhs));
     }
 
+    const U32Value& LDRB(const U32Value& address) {
+      return std::get<0>(Emit<U32Value>(Type::LDR, Flag::Byte, address));
+    }
+
+    const U32Value& LDRH(const U32Value& address) {
+      return std::get<0>(Emit<U32Value>(Type::LDR, Flag::Half, address));
+    }
+
+    const U32Value& LDR(const U32Value& address) {
+      return std::get<0>(Emit<U32Value>(Type::LDR, Flag::Word, address));
+    }
+
+    void STRB(const U32Value& address, const U32Value& value) {
+      Emit<U32Value>(Type::STR, Flag::Byte, address, value);
+    }
+
+    void STRH(const U32Value& address, const U32Value& value) {
+      Emit<U32Value>(Type::STR, Flag::Half, address, value);
+    }
+
+    void STR(const U32Value& address, const U32Value& value) {
+      Emit<U32Value>(Type::STR, Flag::Word, address, value);
+    }
+
     const U32Value& BITCMB(const U32Value& lhs, const U32Value& rhs, const U32Value& mask) {
       return std::get<0>(Emit<U32Value>(Type::BITCMB, 0u, lhs, rhs, mask));
     }

@@ -69,7 +69,9 @@ static bool IsSideEffectFree(Instruction* instruction) {
     case Type::STSPSR:
     case Type::BR:
     case Type::BR_IF:
-    case Type::EXIT: {
+    case Type::EXIT:
+    case Type::LDR:
+    case Type::STR: {
       return false;
     }
     default: {

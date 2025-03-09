@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include <dual/arm/memory.hpp>
 #include <atom/integer.hpp>
 #include <vector>
 
@@ -11,7 +12,7 @@ namespace dual::arm::jit {
 
 class InterpreterBackend final : public Backend {
   public:
-    explicit InterpreterBackend(State& cpu_state);
+    explicit InterpreterBackend(State& cpu_state, Memory& memory);
 
     void Execute(const ir::Function& function, bool debug) override;
 
@@ -21,6 +22,7 @@ class InterpreterBackend final : public Backend {
     };
 
     State& m_cpu_state;
+    Memory& m_memory;
     std::vector<HostReg> m_host_regs{};
 };
 

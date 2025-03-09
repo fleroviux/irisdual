@@ -383,6 +383,16 @@ TranslatorT16::Code TranslatorT16::Translate_SpecialDataProcessing(u32 r15, ir::
   return Code::Success;
 }
 
+TranslatorT16::Code TranslatorT16::Translate_LoadFromLiteralPool(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
+  // TODO(fleroviux): test if Bit 1 really is forced to zero and on what processor models?
+  const u32 address = (r15 & ~2) + bit::get_field(instruction, 0u, 8u) * sizeof(u32);
+  const ir::GPR reg_dst = bit::get_field<u16, ir::GPR>(instruction, 8u, 3u);
+  emitter.STGPR(reg_dst, cpu_mode, emitter.LDR(emitter.LDCONST(address)));
+  AdvancePC(emitter, r15);
+  debug_print_ir = true;
+  return Code::Success;
+}
+
 TranslatorT16::Code TranslatorT16::Translate_Unimplemented(u32, ir::Mode, u16, ir::Emitter&) {
   return Code::Fallback;
 }
@@ -439,7 +449,7 @@ TranslatorT16::HandlerFn TranslatorT16::GetInstructionHandler(u16 instruction) {
   DECODE("010000oooosssddd", DataProcessingReg) // Data-processing register, NOTE: sss = Rm/Rs, ddd = Rd/Rn
   DECODE("01000111LYmmmddd", Unimplemented) // Branch/exchange instruction set, Y = H2
   DECODE("010001ooXYmmmddd", SpecialDataProcessing) // Special data processing, X=H1, Y=H2, ddd = Rd/Rn
-  DECODE("01001dddiiiiiiii", Unimplemented) // Load from literal pool
+  DECODE("01001dddiiiiiiii", LoadFromLiteralPool) // Load from literal pool
   DECODE("0101oo0mmmnnnddd", Unimplemented) // Load/store register offset
   DECODE("0101oo1mmmnnnddd", Unimplemented) // Load/store signed, FIXME: merge this with the format above
   DECODE("011BLiiiiinnnddd", Unimplemented) // Load/store word/byte immediate offset

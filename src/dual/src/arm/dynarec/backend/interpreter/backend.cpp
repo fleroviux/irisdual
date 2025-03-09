@@ -9,8 +9,9 @@ namespace dual::arm::jit {
 
 static bool EvaluateCondition(ir::Condition condition, u32 flags);
 
-InterpreterBackend::InterpreterBackend(State& cpu_state)
-    : m_cpu_state{cpu_state} {
+InterpreterBackend::InterpreterBackend(State& cpu_state, Memory& memory)
+    : m_cpu_state{cpu_state}
+    , m_memory{memory} {
 }
 
 void InterpreterBackend::Execute(const ir::Function& function, bool debug) {
@@ -347,6 +348,33 @@ void InterpreterBackend::Execute(const ir::Function& function, bool debug) {
           const u32 lhs = m_host_regs[instruction->GetArg(0u).AsValue()].data_u32;
           const u32 rhs = m_host_regs[instruction->GetArg(1u).AsValue()].data_u32;
           m_host_regs[instruction->GetOut(0u)].data_u32 = lhs * rhs;
+          break;
+        }
+
+        // Memory Access
+        case InstructionType::LDR: {
+          const u32 address = m_host_regs[instruction->GetArg(0u).AsValue()].data_u32;
+
+          u32 data;
+          switch(instruction->flags) {
+            case ir::Instruction::Flag::Byte: data = m_memory.ReadByte(address, Memory::Bus::Data); break;
+            case ir::Instruction::Flag::Half: data = m_memory.ReadHalf(address, Memory::Bus::Data); break;
+            case ir::Instruction::Flag::Word: data = m_memory.ReadWord(address, Memory::Bus::Data); break;
+            default: ATOM_PANIC("bad instruction flags combination: {}", (int)instruction->flags);
+          }
+          m_host_regs[instruction->GetOut(0u)].data_u32 = data;
+          break;
+        }
+        case InstructionType::STR: {
+          const u32 address = m_host_regs[instruction->GetArg(0u).AsValue()].data_u32;
+          const u32 data = m_host_regs[instruction->GetArg(1u).AsValue()].data_u32;
+
+          switch(instruction->flags) {
+            case ir::Instruction::Flag::Byte: m_memory.WriteByte(address, data, Memory::Bus::Data); break;
+            case ir::Instruction::Flag::Half: m_memory.WriteHalf(address, data, Memory::Bus::Data); break;
+            case ir::Instruction::Flag::Word: m_memory.WriteWord(address, data, Memory::Bus::Data); break;
+            default: ATOM_PANIC("bad instruction flags combination: {}", (int)instruction->flags);
+          }
           break;
         }
 
