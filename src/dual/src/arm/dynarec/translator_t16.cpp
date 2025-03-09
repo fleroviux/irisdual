@@ -384,12 +384,62 @@ TranslatorT16::Code TranslatorT16::Translate_SpecialDataProcessing(u32 r15, ir::
 }
 
 TranslatorT16::Code TranslatorT16::Translate_LoadFromLiteralPool(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
-  // TODO(fleroviux): test if Bit 1 really is forced to zero and on what processor models?
+  // TODO(fleroviux): test if bit 1 really is forced to zero and on what processor models?
   const u32 address = (r15 & ~2) + bit::get_field(instruction, 0u, 8u) * sizeof(u32);
   const ir::GPR reg_dst = bit::get_field<u16, ir::GPR>(instruction, 8u, 3u);
   emitter.STGPR(reg_dst, cpu_mode, emitter.LDR(emitter.LDCONST(address)));
   AdvancePC(emitter, r15);
-  debug_print_ir = true;
+  return Code::Success;
+}
+
+TranslatorT16::Code TranslatorT16::Translate_LoadStoreRegOffset(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
+  enum class Opcode {
+    STR = 0, STRH = 1, STRB = 2, LDSB = 3,
+    LDR = 4, LDRH = 5, LDRB = 6, LDSH = 7
+  };
+
+  const ir::GPR reg_src_dst = bit::get_field<u16, ir::GPR>(instruction, 0u, 3u);
+  const ir::GPR reg_base = bit::get_field<u16, ir::GPR>(instruction, 3u, 3u);
+  const ir::GPR reg_offset = bit::get_field<u16, ir::GPR>(instruction, 6u, 3u);
+  const Opcode opcode = bit::get_field<u16, Opcode>(instruction, 9u, 3u);
+
+  const ir::U32Value& address_value = emitter.ADD(emitter.LDGPR(reg_base, cpu_mode), emitter.LDGPR(reg_offset, cpu_mode));
+
+  switch(opcode) {
+    case Opcode::STR: {
+      emitter.STR(address_value, emitter.LDGPR(reg_src_dst, cpu_mode));
+      break;
+    }
+    case Opcode::STRH: {
+      emitter.STRH(address_value, emitter.LDGPR(reg_src_dst, cpu_mode));
+      break;
+    }
+    case Opcode::STRB: {
+      emitter.STRH(address_value, emitter.LDGPR(reg_src_dst, cpu_mode));
+      break;
+    }
+    case Opcode::LDSB: {
+      return Code::Fallback;
+    }
+    case Opcode::LDR: {
+      emitter.STGPR(reg_src_dst, cpu_mode, emitter.LDR(address_value));
+      break;
+    }
+    case Opcode::LDRH: {
+      emitter.STGPR(reg_src_dst, cpu_mode, emitter.LDRH(address_value));
+      break;
+    }
+    case Opcode::LDRB: {
+      emitter.STGPR(reg_src_dst, cpu_mode, emitter.LDRB(address_value));
+      break;
+    }
+    case Opcode::LDSH: {
+      return Code::Fallback;
+    }
+    default: ATOM_UNREACHABLE();
+  }
+
+  AdvancePC(emitter, r15);
   return Code::Success;
 }
 
@@ -450,8 +500,7 @@ TranslatorT16::HandlerFn TranslatorT16::GetInstructionHandler(u16 instruction) {
   DECODE("01000111LYmmmddd", Unimplemented) // Branch/exchange instruction set, Y = H2
   DECODE("010001ooXYmmmddd", SpecialDataProcessing) // Special data processing, X=H1, Y=H2, ddd = Rd/Rn
   DECODE("01001dddiiiiiiii", LoadFromLiteralPool) // Load from literal pool
-  DECODE("0101oo0mmmnnnddd", Unimplemented) // Load/store register offset
-  DECODE("0101oo1mmmnnnddd", Unimplemented) // Load/store signed, FIXME: merge this with the format above
+  DECODE("0101ooommmnnnddd", LoadStoreRegOffset) // Load/store register offset
   DECODE("011BLiiiiinnnddd", Unimplemented) // Load/store word/byte immediate offset
   DECODE("1000Liiiiinnnddd", Unimplemented) // Load/store halfword immediate offset
   DECODE("1001Ldddiiiiiiii", Unimplemented) // Load/store to/from stack
