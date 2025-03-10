@@ -60,6 +60,8 @@ static bool IsSideEffectFree(Instruction* instruction) {
     case Type::EOR:
     case Type::NOT:
     case Type::MUL:
+    case Type::SXTB:
+    case Type::SXTH:
     case Type::BITCMB:
     case Type::CSEL: {
       return true;

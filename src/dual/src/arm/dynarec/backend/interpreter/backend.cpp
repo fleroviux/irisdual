@@ -378,6 +378,16 @@ void InterpreterBackend::Execute(const ir::Function& function, bool debug) {
           break;
         }
 
+        // Sign extension
+        case InstructionType::SXTB: {
+          m_host_regs[instruction->GetOut(0u)].data_u32 = (u32)(i32)(i8)m_host_regs[instruction->GetArg(0u).AsValue()].data_u32;
+          break;
+        }
+        case InstructionType::SXTH: {
+          m_host_regs[instruction->GetOut(0u)].data_u32 = (u32)(i32)(i16)m_host_regs[instruction->GetArg(0u).AsValue()].data_u32;
+          break;
+        }
+
         // Other
         case InstructionType::BITCMB: {
           const u32 lhs = m_host_regs[instruction->GetArg(0u).AsValue()].data_u32;

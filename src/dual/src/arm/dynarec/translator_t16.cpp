@@ -394,8 +394,8 @@ TranslatorT16::Code TranslatorT16::Translate_LoadFromLiteralPool(u32 r15, ir::Mo
 
 TranslatorT16::Code TranslatorT16::Translate_LoadStoreRegOffset(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
   enum class Opcode {
-    STR = 0, STRH = 1, STRB = 2, LDSB = 3,
-    LDR = 4, LDRH = 5, LDRB = 6, LDSH = 7
+    STR = 0, STRH = 1, STRB = 2, LDRSB = 3,
+    LDR = 4, LDRH = 5, LDRB = 6, LDRSH = 7
   };
 
   const ir::GPR reg_src_dst = bit::get_field<u16, ir::GPR>(instruction, 0u, 3u);
@@ -418,9 +418,9 @@ TranslatorT16::Code TranslatorT16::Translate_LoadStoreRegOffset(u32 r15, ir::Mod
       emitter.STRH(address_value, emitter.LDGPR(reg_src_dst, cpu_mode));
       break;
     }
-    case Opcode::LDSB: {
-      // TODO(fleroviux)
-      return Code::Fallback;
+    case Opcode::LDRSB: {
+      emitter.STGPR(reg_src_dst, cpu_mode, emitter.SXTB(emitter.LDRB(address_value)));
+      break;
     }
     case Opcode::LDR: {
       // TODO(fleroviux): implement rotate for ARM7
@@ -436,9 +436,10 @@ TranslatorT16::Code TranslatorT16::Translate_LoadStoreRegOffset(u32 r15, ir::Mod
       emitter.STGPR(reg_src_dst, cpu_mode, emitter.LDRB(address_value));
       break;
     }
-    case Opcode::LDSH: {
-      // TODO(fleroviux)
-      return Code::Fallback;
+    case Opcode::LDRSH: {
+      // TODO(fleroviux): implement rotate for ARM7
+      emitter.STGPR(reg_src_dst, cpu_mode, emitter.SXTH(emitter.LDRH(address_value)));
+      break;
     }
     default: ATOM_UNREACHABLE();
   }

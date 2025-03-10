@@ -58,6 +58,10 @@ struct Instruction {
     LDR,
     STR,
 
+    // Sign extension
+    SXTB,
+    SXTH,
+
     // Other
     BITCMB,
     CSEL

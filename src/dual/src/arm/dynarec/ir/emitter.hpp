@@ -169,6 +169,14 @@ class Emitter {
       Emit<U32Value>(Type::STR, Flag::Word, address, value);
     }
 
+    const U32Value& SXTB(const U32Value& value) {
+      return std::get<0>(Emit<U32Value>(Type::SXTB, 0u, value));
+    }
+
+    const U32Value& SXTH(const U32Value& value) {
+      return std::get<0>(Emit<U32Value>(Type::SXTH, 0u, value));
+    }
+
     const U32Value& BITCMB(const U32Value& lhs, const U32Value& rhs, const U32Value& mask) {
       return std::get<0>(Emit<U32Value>(Type::BITCMB, 0u, lhs, rhs, mask));
     }
