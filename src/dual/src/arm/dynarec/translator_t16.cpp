@@ -1,5 +1,6 @@
 
 #include <atom/bit.hpp>
+#include <atom/panic.hpp>
 #include <bit>
 
 #include "translator_t16.hpp"
@@ -595,6 +596,38 @@ TranslatorT16::Code TranslatorT16::Translate_PushPopRegList(u32 r15, ir::Mode cp
   return Code::Success;
 }
 
+TranslatorT16::Code TranslatorT16::Translate_LoadStoreMultiple(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
+  // TODO(fleroviux): handle empty register list edge cases (either throw error or emulate them)
+
+  const ir::GPR reg_base = bit::get_field<u16, ir::GPR>(instruction, 8u, 3u);
+  const bool load = bit::get_bit(instruction, 11u);
+
+  const ir::U32Value* address_value = &emitter.LDGPR(reg_base, cpu_mode);
+
+  for(int reg = 0; reg <= 7; reg++) {
+    if(bit::get_bit(instruction, reg)) {
+      if(load) {
+        emitter.STGPR((ir::GPR) reg, cpu_mode, emitter.LDR(*address_value));
+      } else {
+        emitter.STR(*address_value, emitter.LDGPR((ir::GPR) reg, cpu_mode));
+      }
+      address_value = &emitter.ADD(*address_value, emitter.LDCONST(4u));
+    }
+  }
+
+  // ARMv4, ARMv5 LDM: writeback is disabled if base register is included in the register list
+  if(!load || !bit::get_bit(instruction, (uint)reg_base)) {
+    // TODO(fleroviux): figure out the correct writeback condition for ARM11
+    if(m_cpu_model == CPU::Model::ARM11) {
+      ATOM_PANIC("unhandled ARM11 LDM with base register in register list");
+    }
+    emitter.STGPR(reg_base, cpu_mode, *address_value);
+  }
+
+  AdvancePC(emitter, r15);
+  return Code::Success;
+}
+
 TranslatorT16::Code TranslatorT16::Translate_Unimplemented(u32, ir::Mode, u16, ir::Emitter&) {
   return Code::Fallback;
 }
@@ -693,7 +726,7 @@ TranslatorT16::HandlerFn TranslatorT16::GetInstructionHandler(u16 instruction) {
   DECODE("10110000oiiiiiii", AdjustStackPointer) // Adjust stack pointer
   DECODE("1011L10Rrrrrrrrr", PushPopRegList) // Push/pop register list
   DECODE("10111110iiiiiiii", Unimplemented) // Software breakpoint
-  DECODE("1100Lnnnrrrrrrrr", Unimplemented) // Load/store multiple
+  DECODE("1100Lnnnrrrrrrrr", LoadStoreMultiple) // Load/store multiple
   DECODE("11011110xxxxxxxx", Unimplemented) // Undefined instruction
   DECODE("11011111iiiiiiii", Unimplemented) // Software interrupt
   DECODE("1101cccciiiiiiii", Unimplemented) // Conditional branch
