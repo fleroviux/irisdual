@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include <dual/arm/cpu.hpp>
 #include <atom/integer.hpp>
 #include <array>
 
@@ -15,7 +16,7 @@ class TranslatorT16 {
       Fallback
     };
 
-    TranslatorT16();
+    explicit TranslatorT16(CPU::Model cpu_model);
 
     Code Translate(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
 
@@ -52,6 +53,8 @@ class TranslatorT16 {
     void AdvancePC(ir::Emitter& emitter, u32 current_r15);
     void UpdateFlags(ir::Emitter& emitter, u32 flag_set, const ir::HostFlagsValue& hflag_value);
     void UpdateFlags(ir::Emitter& emitter, u32 flag_set, const ir::U32Value& nzcv_value);
+    const ir::U32Value& ReadHalfMaybeRotate(ir::Emitter& emitter, const ir::U32Value& address_value);
+    const ir::U32Value& ReadWordRotate(ir::Emitter& emitter, const ir::U32Value& address_value);
 
     void BuildLUT();
 
@@ -59,6 +62,8 @@ class TranslatorT16 {
 
     // TODO(fleroviux): make this array static
     std::array<HandlerFn, 256u> m_handler_lut{};
+
+    CPU::Model m_cpu_model;
 };
 
 } // namespace dual::arm::jit

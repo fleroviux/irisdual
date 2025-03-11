@@ -20,7 +20,8 @@ DynarecCPU::DynarecCPU(
   Model model,
   std::span<const AttachCPn> coprocessors
 )   : m_fallback_cpu{memory, scheduler, cycle_counter, model, coprocessors}
-    , m_memory{memory} {
+    , m_memory{memory}
+    , m_translator_t16{model} {
   m_backend = std::make_unique<jit::InterpreterBackend>(m_cpu_state, m_memory);
   m_ir_passes.push_back(std::make_unique<jit::ir::GuestStateAccessRemovalPass>());
   m_ir_passes.push_back(std::make_unique<jit::ir::HostFlagPropagationPass>());

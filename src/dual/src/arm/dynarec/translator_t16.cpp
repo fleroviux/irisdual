@@ -9,7 +9,7 @@ namespace bit = atom::bit;
 
 namespace dual::arm::jit {
 
-TranslatorT16::TranslatorT16() {
+TranslatorT16::TranslatorT16(CPU::Model cpu_model) : m_cpu_model{cpu_model} {
   BuildLUT();
 }
 
@@ -384,7 +384,7 @@ TranslatorT16::Code TranslatorT16::Translate_SpecialDataProcessing(u32 r15, ir::
 }
 
 TranslatorT16::Code TranslatorT16::Translate_LoadFromLiteralPool(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
-  // TODO(fleroviux): test if bit 1 really is forced to zero and on what processor models?
+  // TODO(fleroviux): test if the address always is force-aligned (at least on ARM7?) or if we should actually perform a rotated word read.
   const u32 address = (r15 & ~2) + bit::get_field(instruction, 0u, 8u) * sizeof(u32);
   const ir::GPR reg_dst = bit::get_field<u16, ir::GPR>(instruction, 8u, 3u);
   emitter.STGPR(reg_dst, cpu_mode, emitter.LDR(emitter.LDCONST(address)));
@@ -423,13 +423,11 @@ TranslatorT16::Code TranslatorT16::Translate_LoadStoreRegOffset(u32 r15, ir::Mod
       break;
     }
     case Opcode::LDR: {
-      // TODO(fleroviux): implement rotate for ARM7
-      emitter.STGPR(reg_src_dst, cpu_mode, emitter.LDR(address_value));
+      emitter.STGPR(reg_src_dst, cpu_mode, ReadWordRotate(emitter, address_value));
       break;
     }
     case Opcode::LDRH: {
-      // TODO(fleroviux): implement rotate for ARM7
-      emitter.STGPR(reg_src_dst, cpu_mode, emitter.LDRH(address_value));
+      emitter.STGPR(reg_src_dst, cpu_mode, ReadHalfMaybeRotate(emitter, address_value));
       break;
     }
     case Opcode::LDRB: {
@@ -437,8 +435,7 @@ TranslatorT16::Code TranslatorT16::Translate_LoadStoreRegOffset(u32 r15, ir::Mod
       break;
     }
     case Opcode::LDRSH: {
-      // TODO(fleroviux): implement rotate for ARM7
-      emitter.STGPR(reg_src_dst, cpu_mode, emitter.SXTH(emitter.LDRH(address_value)));
+      emitter.STGPR(reg_src_dst, cpu_mode, emitter.SXTH(ReadHalfMaybeRotate(emitter, address_value)));
       break;
     }
     default: ATOM_UNREACHABLE();
@@ -465,9 +462,8 @@ TranslatorT16::Code TranslatorT16::Translate_LoadStoreWordByteImmOffset(u32 r15,
       break;
     }
     case Opcode::LDR: {
-      // TODO(fleroviux): implement rotate for ARM7
       const ir::U32Value& address_value = emitter.ADD(base_address_value, emitter.LDCONST(imm_offset * sizeof(u32)));
-      emitter.STGPR(reg_src_dst, cpu_mode, emitter.LDR(address_value));
+      emitter.STGPR(reg_src_dst, cpu_mode, ReadWordRotate(emitter, address_value));
       break;
     }
     case Opcode::STRB: {
@@ -495,8 +491,7 @@ TranslatorT16::Code TranslatorT16::Translate_LoadStoreHalfImmOffset(u32 r15, ir:
   const ir::U32Value& address_value = emitter.ADD(emitter.LDGPR(reg_base, cpu_mode), emitter.LDCONST(imm_offset * sizeof(u16)));
 
   if(bit::get_bit(instruction, 11u)) {
-    // TODO(fleroviux): implement rotate for ARM7
-    emitter.STGPR(reg_src_dst, cpu_mode, emitter.LDRH(address_value));
+    emitter.STGPR(reg_src_dst, cpu_mode, ReadHalfMaybeRotate(emitter, address_value));
   } else {
     emitter.STRH(address_value, emitter.LDGPR(reg_src_dst, cpu_mode));
   }
@@ -512,8 +507,7 @@ TranslatorT16::Code TranslatorT16::Translate_LoadStoreToFromStack(u32 r15, ir::M
   const ir::U32Value& address_value = emitter.ADD(emitter.LDGPR(ir::GPR::SP, cpu_mode), emitter.LDCONST(imm_offset * sizeof(u32)));
 
   if(bit::get_bit(instruction, 11u)) {
-    // TODO(fleroviux): implement rotate for ARM7
-    emitter.STGPR(reg_src_dst, cpu_mode, emitter.LDR(address_value));
+    emitter.STGPR(reg_src_dst, cpu_mode, ReadWordRotate(emitter, address_value));
   } else {
     emitter.STR(address_value, emitter.LDGPR(reg_src_dst, cpu_mode));
   }
@@ -571,6 +565,20 @@ void TranslatorT16::UpdateFlags(ir::Emitter& emitter, u32 flag_set, const ir::U3
   const ir::U32Value& cpsr_old = emitter.LDCPSR();
   const ir::U32Value& cpsr_new = emitter.BITCMB(cpsr_old, nzcv_value, flag_set);
   emitter.STCPSR(cpsr_new);
+}
+
+const ir::U32Value& TranslatorT16::ReadHalfMaybeRotate(ir::Emitter& emitter, const ir::U32Value& address_value) {
+  if(m_cpu_model == CPU::Model::ARM7) {
+    const ir::U32Value& rotate_amount = emitter.LSL(emitter.AND(address_value, emitter.LDCONST(1u)), emitter.LDCONST(3u));
+    return emitter.ROR(emitter.LDRH(address_value), rotate_amount);
+  }
+  return emitter.LDRH(address_value);
+}
+
+const ir::U32Value& TranslatorT16::ReadWordRotate(ir::Emitter& emitter, const ir::U32Value& address_value) {
+  // TODO(fleroviux): on ARM11: disable rotate behavior when unaligned data access is enabled.
+  const ir::U32Value& rotate_amount = emitter.LSL(emitter.AND(address_value, emitter.LDCONST(3u)), emitter.LDCONST(3u));
+  return emitter.ROR(emitter.LDR(address_value), rotate_amount);
 }
 
 void TranslatorT16::BuildLUT() {
