@@ -32,6 +32,7 @@ class TranslatorT16 {
     Code Translate_LoadStoreToFromStack(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
     Code Translate_AddToSPOrPC(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
     Code Translate_AdjustStackPointer(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
+    Code Translate_PushPopRegList(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
     Code Translate_Unimplemented(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
 
   private:
@@ -51,6 +52,8 @@ class TranslatorT16 {
     };
 
     void AdvancePC(ir::Emitter& emitter, u32 current_r15);
+    void FlushExchange(ir::Emitter& emitter, const ir::U32Value& new_pc_value);
+    void Flush(ir::Emitter& emitter, const ir::U32Value& new_pc_value);
     void UpdateFlags(ir::Emitter& emitter, u32 flag_set, const ir::HostFlagsValue& hflag_value);
     void UpdateFlags(ir::Emitter& emitter, u32 flag_set, const ir::U32Value& nzcv_value);
     const ir::U32Value& ReadHalfMaybeRotate(ir::Emitter& emitter, const ir::U32Value& address_value);

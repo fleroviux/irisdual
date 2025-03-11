@@ -1,5 +1,6 @@
 
 #include <atom/bit.hpp>
+#include <bit>
 
 #include "translator_t16.hpp"
 
@@ -266,7 +267,6 @@ TranslatorT16::Code TranslatorT16::Translate_DataProcessingReg(u32 r15, ir::Mode
       UpdateFlags(emitter, Flags::C,  emitter.CSEL(ir::Condition::EQ, emitter.TST(amount_value, amount_value), old_carry_value, *new_carry_value));
 
       emitter.STGPR(reg_dst_lhs, cpu_mode, result_value);
-      debug_print_ir = true;
       break;
     };
     case Opcode::TST: {
@@ -323,7 +323,6 @@ TranslatorT16::Code TranslatorT16::Translate_SpecialDataProcessing(u32 r15, ir::
   enum class Opcode { ADD = 0, CMP = 1, MOV = 2 };
 
   // TODO(fleroviux): remove the weird PC alignment stuff? Seems potentially unnecessary.
-  // Also simplify pipeline flushes?
 
   int reg_dst_lhs = bit::get_field(instruction, 0u, 3u);
   int reg_rhs = bit::get_field(instruction, 3u, 3u);
@@ -343,15 +342,13 @@ TranslatorT16::Code TranslatorT16::Translate_SpecialDataProcessing(u32 r15, ir::
 
   switch(opcode) {
     case Opcode::ADD: {
-      const ir::U32Value* result_value = &emitter.ADD(lhs_value, *rhs_value);
+      const ir::U32Value& result_value = emitter.ADD(lhs_value, *rhs_value);
 
       if(reg_dst_lhs == 15) {
         // Reload pipeline and force-align PC
-        result_value = &emitter.ADD(*result_value, emitter.LDCONST(4u));
-        result_value = &emitter.BIC(*result_value, emitter.LDCONST(1u));
-        emitter.STGPR(ir::GPR::PC, cpu_mode, *result_value);
+        Flush(emitter, emitter.BIC(result_value, emitter.LDCONST(1u)));
       } else {
-        emitter.STGPR((ir::GPR)reg_dst_lhs, cpu_mode, *result_value);
+        emitter.STGPR((ir::GPR)reg_dst_lhs, cpu_mode, result_value);
         AdvancePC(emitter, r15);
       }
       break;
@@ -369,8 +366,7 @@ TranslatorT16::Code TranslatorT16::Translate_SpecialDataProcessing(u32 r15, ir::
     case Opcode::MOV: {
       if(reg_dst_lhs == 15) {
         // Reload pipeline and force-align PC
-        const ir::U32Value& address_value = emitter.BIC(emitter.ADD(*rhs_value, emitter.LDCONST(4u)), emitter.LDCONST(1u));
-        emitter.STGPR(ir::GPR::PC, cpu_mode, address_value);
+        Flush(emitter, emitter.BIC(*rhs_value, emitter.LDCONST(1u)));
       } else {
         emitter.STGPR((ir::GPR)reg_dst_lhs, cpu_mode, *rhs_value);
         AdvancePC(emitter, r15);
@@ -548,12 +544,82 @@ TranslatorT16::Code TranslatorT16::Translate_AdjustStackPointer(u32 r15, ir::Mod
   return Code::Success;
 }
 
+TranslatorT16::Code TranslatorT16::Translate_PushPopRegList(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
+  const bool load = bit::get_bit(instruction, 11u);
+
+  // TODO(fleroviux): handle empty register list edge cases (either throw error or emulate them)
+
+  if(load) {
+    const ir::U32Value* address_value = &emitter.LDGPR(ir::GPR::SP, cpu_mode);
+
+    for(int reg = 0; reg <= 7; reg++) {
+      if(bit::get_bit(instruction, reg)) {
+        emitter.STGPR((ir::GPR)reg, cpu_mode, emitter.LDR(*address_value));
+        address_value = &emitter.ADD(*address_value, emitter.LDCONST(4u));
+      }
+    }
+
+    if(bit::get_bit(instruction, 8u)) {
+      const ir::U32Value& new_pc_value = emitter.LDR(*address_value);
+      if(m_cpu_model != CPU::Model::ARM7) {
+        FlushExchange(emitter, new_pc_value);
+      } else {
+        Flush(emitter, new_pc_value);
+      }
+      address_value = &emitter.ADD(*address_value, emitter.LDCONST(4u));
+    } else {
+      AdvancePC(emitter, r15);
+    }
+
+    emitter.STGPR(ir::GPR::SP, cpu_mode, *address_value);
+  } else {
+    const u32 sp_offset = std::popcount(bit::get_field(instruction, 0u, 9u)) * sizeof(u32);
+    const ir::U32Value* address_value = &emitter.SUB(emitter.LDGPR(ir::GPR::SP, cpu_mode), emitter.LDCONST(sp_offset));
+
+    emitter.STGPR(ir::GPR::SP, cpu_mode, *address_value);
+
+    for(int reg = 0; reg <= 7; reg++) {
+      if(bit::get_bit(instruction, reg)) {
+        emitter.STR(*address_value, emitter.LDGPR((ir::GPR)reg, cpu_mode));
+        address_value = &emitter.ADD(*address_value, emitter.LDCONST(4u));
+      }
+    }
+
+    if(bit::get_bit(instruction, 8u)) {
+      emitter.STR(*address_value, emitter.LDGPR(ir::GPR::LR, cpu_mode));
+    }
+
+    AdvancePC(emitter, r15);
+  }
+
+  return Code::Success;
+}
+
 TranslatorT16::Code TranslatorT16::Translate_Unimplemented(u32, ir::Mode, u16, ir::Emitter&) {
   return Code::Fallback;
 }
 
 void TranslatorT16::AdvancePC(ir::Emitter& emitter, u32 current_r15) {
   emitter.STGPR(ir::GPR::PC, ir::Mode::System, emitter.LDCONST(current_r15 + sizeof(u16)));
+}
+
+void TranslatorT16::FlushExchange(ir::Emitter& emitter, const ir::U32Value& new_pc_value) {
+  const ir::U32Value& thumb_bit_value = emitter.AND(new_pc_value, emitter.LDCONST(1u));
+
+  // Update R15
+  // R15 = (new_pc_value & ~1) + 8 - thumb_bit * 4
+  const ir::U32Value& pc_offset_value = emitter.SUB(emitter.LDCONST(8u), emitter.LSL(thumb_bit_value, emitter.LDCONST(2u)));
+  emitter.STGPR(ir::GPR::PC, ir::Mode::System, emitter.ADD(emitter.BIC(new_pc_value, emitter.LDCONST(1u)), pc_offset_value));
+
+  // Update CPSR
+  // CPSR = CPSR & ~(1 << 5) | thumb_bit << 5
+  const ir::U32Value& cpsr_bic_thumb_bit = emitter.BIC(emitter.LDCPSR(), emitter.LDCONST(0x20u));
+  const ir::U32Value& cpsr_orr_thumb_bit = emitter.ORR(cpsr_bic_thumb_bit, emitter.LSL(thumb_bit_value, emitter.LDCONST(5u)));
+  emitter.STCPSR(cpsr_orr_thumb_bit);
+}
+
+void TranslatorT16::Flush(ir::Emitter& emitter, const ir::U32Value& new_pc_value) {
+  emitter.STGPR(ir::GPR::PC, ir::Mode::System, emitter.ADD(new_pc_value, emitter.LDCONST(4u)));
 }
 
 void TranslatorT16::UpdateFlags(ir::Emitter& emitter, u32 flag_set, const ir::HostFlagsValue& hflag_value) {
@@ -625,7 +691,7 @@ TranslatorT16::HandlerFn TranslatorT16::GetInstructionHandler(u16 instruction) {
   DECODE("1001Ldddiiiiiiii", LoadStoreToFromStack) // Load/store to/from stack
   DECODE("1010Xdddiiiiiiii", AddToSPOrPC) // Add to SP or PC, X = SP
   DECODE("10110000oiiiiiii", AdjustStackPointer) // Adjust stack pointer
-  DECODE("1011L10Rrrrrrrrr", Unimplemented) // Push/pop register list
+  DECODE("1011L10Rrrrrrrrr", PushPopRegList) // Push/pop register list
   DECODE("10111110iiiiiiii", Unimplemented) // Software breakpoint
   DECODE("1100Lnnnrrrrrrrr", Unimplemented) // Load/store multiple
   DECODE("11011110xxxxxxxx", Unimplemented) // Undefined instruction
