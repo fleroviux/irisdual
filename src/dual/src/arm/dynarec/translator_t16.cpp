@@ -415,7 +415,7 @@ TranslatorT16::Code TranslatorT16::Translate_LoadStoreRegOffset(u32 r15, ir::Mod
       break;
     }
     case Opcode::STRB: {
-      emitter.STRH(address_value, emitter.LDGPR(reg_src_dst, cpu_mode));
+      emitter.STRB(address_value, emitter.LDGPR(reg_src_dst, cpu_mode));
       break;
     }
     case Opcode::LDRSB: {
