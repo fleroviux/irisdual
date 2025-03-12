@@ -26,7 +26,7 @@ class DynarecCPU final : public CPU {
       Scheduler& scheduler,
       CycleCounter& cycle_counter,
       Model model,
-      std::span<const AttachCPn> coprocessors = {}
+      std::span<const AttachCPn> coprocessor_table = {}
     );
     
     void Reset() override;

@@ -628,6 +628,23 @@ TranslatorT16::Code TranslatorT16::Translate_LoadStoreMultiple(u32 r15, ir::Mode
   return Code::Success;
 }
 
+TranslatorT16::Code TranslatorT16::Translate_SoftwareInterrupt(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
+  (void)instruction;
+
+  // Save CPSR in SPSR_svc
+  const ir::U32Value& cpsr_old = emitter.LDCPSR();
+  emitter.STSPSR(ir::Mode::Supervisor, cpsr_old);
+
+  // Set CPSR.mode=SVC, CPSR.thumb=0 and CPSR.mask_irq=1
+  const ir::U32Value& cpsr_new = emitter.ORR(emitter.BIC(cpsr_old, emitter.LDCONST(0x3Fu)), emitter.LDCONST((u32)ir::Mode::Supervisor | 0x80u));
+  emitter.STCPSR(cpsr_new);
+
+  // Save current program counter and jump to SVC exception vector.
+  emitter.STGPR(ir::GPR::LR, ir::Mode::Supervisor, emitter.LDCONST(r15 - 2u));
+  emitter.STGPR(ir::GPR::PC, ir::Mode::System, emitter.LDCONST(m_exception_base + (u32)ExceptionVector::SVC + 8u));
+  return Code::Success;
+}
+
 TranslatorT16::Code TranslatorT16::Translate_Unimplemented(u32, ir::Mode, u16, ir::Emitter&) {
   return Code::Fallback;
 }
@@ -728,7 +745,7 @@ TranslatorT16::HandlerFn TranslatorT16::GetInstructionHandler(u16 instruction) {
   DECODE("10111110iiiiiiii", Unimplemented) // Software breakpoint
   DECODE("1100Lnnnrrrrrrrr", LoadStoreMultiple) // Load/store multiple
   DECODE("11011110xxxxxxxx", Unimplemented) // Undefined instruction
-  DECODE("11011111iiiiiiii", Unimplemented) // Software interrupt
+  DECODE("11011111iiiiiiii", SoftwareInterrupt) // Software interrupt
   DECODE("1101cccciiiiiiii", Unimplemented) // Conditional branch
   DECODE("11100iiiiiiiiiii", Unimplemented) // Unconditional branch
   DECODE("11101xxxxxxxxxx1", Unimplemented) // Undefined instruction

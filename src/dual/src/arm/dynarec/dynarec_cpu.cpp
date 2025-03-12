@@ -18,14 +18,19 @@ DynarecCPU::DynarecCPU(
   Scheduler& scheduler,
   CycleCounter& cycle_counter,
   Model model,
-  std::span<const AttachCPn> coprocessors
-)   : m_fallback_cpu{memory, scheduler, cycle_counter, model, coprocessors}
+  std::span<const AttachCPn> coprocessor_table
+)   : m_fallback_cpu{memory, scheduler, cycle_counter, model, coprocessor_table}
     , m_memory{memory}
     , m_translator_t16{model} {
   m_backend = std::make_unique<jit::InterpreterBackend>(m_cpu_state, m_memory);
   m_ir_passes.push_back(std::make_unique<jit::ir::GuestStateAccessRemovalPass>());
   m_ir_passes.push_back(std::make_unique<jit::ir::HostFlagPropagationPass>());
   m_ir_passes.push_back(std::make_unique<jit::ir::DeadCodeRemovalPass>());
+
+  for(auto& attach_cp_n : coprocessor_table) {
+    //m_coprocessors.at(attach_cp_n.id) = attach_cp_n.coprocessor;
+    attach_cp_n.coprocessor->SetCPU(this);
+  }
 }
 
 void DynarecCPU::Reset() {
@@ -41,6 +46,7 @@ u32  DynarecCPU::GetExceptionBase() const {
 
 void DynarecCPU::SetExceptionBase(u32 address) {
   m_fallback_cpu.SetExceptionBase(address);
+  m_translator_t16.SetExceptionBase(address);
 }
 
 void DynarecCPU::InvalidateICache() {
