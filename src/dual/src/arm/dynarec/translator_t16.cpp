@@ -381,9 +381,33 @@ TranslatorT16::Code TranslatorT16::Translate_SpecialDataProcessing(u32 r15, ir::
   return Code::Success;
 }
 
+TranslatorT16::Code TranslatorT16::Translate_BranchExchange(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
+  int reg_src = bit::get_field(instruction, 3u, 3u);
+  if(bit::get_bit(instruction, 6u)) {
+    reg_src |= 8;
+  }
+
+  const bool exchange = bit::get_bit(instruction, 7u);
+
+  // TODO(fleroviux): remove the weird PC alignment stuff? Seems potentially unnecessary.
+  const ir::U32Value* src_value = &emitter.LDGPR((ir::GPR)reg_src, cpu_mode);
+  if(reg_src == 15) {
+    src_value = &emitter.BIC(*src_value, emitter.LDCONST(1u));
+  }
+
+  if(exchange && m_cpu_model != CPU::Model::ARM7) {
+    // This is UNPREDICTABLE on ARM7. In practice the exchange-bit just is ignored, as far as I remember.
+    const u32 return_address = (r15 - sizeof(u16)) | 1u;
+    emitter.STGPR(ir::GPR::LR, cpu_mode, emitter.LDCONST(return_address));
+  }
+
+  FlushExchange(emitter, *src_value);
+  return Code::Success;
+}
+
 TranslatorT16::Code TranslatorT16::Translate_LoadFromLiteralPool(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
   // TODO(fleroviux): test if the address always is force-aligned (at least on ARM7?) or if we should actually perform a rotated word read.
-  const u32 address = (r15 & ~2) + bit::get_field(instruction, 0u, 8u) * sizeof(u32);
+  const u32 address = (r15 & ~2u) + bit::get_field(instruction, 0u, 8u) * sizeof(u32);
   const ir::GPR reg_dst = bit::get_field<u16, ir::GPR>(instruction, 8u, 3u);
   emitter.STGPR(reg_dst, cpu_mode, emitter.LDR(emitter.LDCONST(address)));
   AdvancePC(emitter, r15);
@@ -787,7 +811,7 @@ TranslatorT16::HandlerFn TranslatorT16::GetInstructionHandler(u16 instruction) {
   DECODE("000ooiiiiimmmddd", ShiftByImm) // Shift by immediate
   DECODE("001oonnniiiiiiii", AddSubCmpMovImm) // Add/subtract/compare/move immediate, NOTE: nnn is nnn and/or ddd
   DECODE("010000oooosssddd", DataProcessingReg) // Data-processing register, NOTE: sss = Rm/Rs, ddd = Rd/Rn
-  DECODE("01000111LYmmmddd", Unimplemented) // Branch/exchange instruction set, Y = H2
+  DECODE("01000111LYmmmddd", BranchExchange) // Branch/exchange instruction set, Y = H2
   DECODE("010001ooXYmmmddd", SpecialDataProcessing) // Special data processing, X=H1, Y=H2, ddd = Rd/Rn
   DECODE("01001dddiiiiiiii", LoadFromLiteralPool) // Load from literal pool
   DECODE("0101ooommmnnnddd", LoadStoreRegOffset) // Load/store register offset
