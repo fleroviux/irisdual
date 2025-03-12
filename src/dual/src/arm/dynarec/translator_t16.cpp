@@ -628,9 +628,18 @@ TranslatorT16::Code TranslatorT16::Translate_LoadStoreMultiple(u32 r15, ir::Mode
   return Code::Success;
 }
 
-TranslatorT16::Code TranslatorT16::Translate_SoftwareInterrupt(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
-  (void)instruction;
+TranslatorT16::Code TranslatorT16::Translate_ConditionalBranch(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
+  const u32 imm_offset = (u32)(i32)(i8)bit::get_field(instruction, 0u, 8u) << 1;
+  const ir::Condition condition = bit::get_field<u16, ir::Condition>(instruction, 8u, 4u);
 
+  const ir::HostFlagsValue& hflag_value = emitter.CVT_NZCV_HFLAG(emitter.LDCPSR());
+  const ir::U32Value& new_pc_true  = emitter.LDCONST(r15 + imm_offset + sizeof(u16) * 2u);
+  const ir::U32Value& new_pc_false = emitter.LDCONST(r15 + sizeof(u16));
+  emitter.STGPR(ir::GPR::PC, ir::Mode::System, emitter.CSEL(condition, hflag_value, new_pc_true, new_pc_false));
+  return Code::Success;
+}
+
+TranslatorT16::Code TranslatorT16::Translate_SoftwareInterrupt(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
   // Save CPSR in SPSR_svc
   const ir::U32Value& cpsr_old = emitter.LDCPSR();
   emitter.STSPSR(ir::Mode::Supervisor, cpsr_old);
@@ -746,7 +755,7 @@ TranslatorT16::HandlerFn TranslatorT16::GetInstructionHandler(u16 instruction) {
   DECODE("1100Lnnnrrrrrrrr", LoadStoreMultiple) // Load/store multiple
   DECODE("11011110xxxxxxxx", Unimplemented) // Undefined instruction
   DECODE("11011111iiiiiiii", SoftwareInterrupt) // Software interrupt
-  DECODE("1101cccciiiiiiii", Unimplemented) // Conditional branch
+  DECODE("1101cccciiiiiiii", ConditionalBranch) // Conditional branch
   DECODE("11100iiiiiiiiiii", Unimplemented) // Unconditional branch
   DECODE("11101xxxxxxxxxx1", Unimplemented) // Undefined instruction
   DECODE("11101iiiiiiiiiii", Unimplemented) // BLX suffix
