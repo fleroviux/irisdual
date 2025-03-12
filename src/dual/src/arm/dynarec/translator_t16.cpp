@@ -654,6 +654,17 @@ TranslatorT16::Code TranslatorT16::Translate_SoftwareInterrupt(u32 r15, ir::Mode
   return Code::Success;
 }
 
+TranslatorT16::Code TranslatorT16::Translate_UnconditionalBranch(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
+  u32 imm_offset = bit::get_field(instruction, 0u, 11u);
+  if(imm_offset & 0x400u) {
+    imm_offset |= 0xFFFFF800u;
+  }
+
+  const u32 new_pc = r15 + (imm_offset << 1) + sizeof(u16) * 2u;
+  emitter.STGPR(ir::GPR::PC, ir::Mode::System, emitter.LDCONST(new_pc));
+  return Code::Success;
+}
+
 TranslatorT16::Code TranslatorT16::Translate_Unimplemented(u32, ir::Mode, u16, ir::Emitter&) {
   return Code::Fallback;
 }
@@ -756,7 +767,7 @@ TranslatorT16::HandlerFn TranslatorT16::GetInstructionHandler(u16 instruction) {
   DECODE("11011110xxxxxxxx", Unimplemented) // Undefined instruction
   DECODE("11011111iiiiiiii", SoftwareInterrupt) // Software interrupt
   DECODE("1101cccciiiiiiii", ConditionalBranch) // Conditional branch
-  DECODE("11100iiiiiiiiiii", Unimplemented) // Unconditional branch
+  DECODE("11100iiiiiiiiiii", UnconditionalBranch) // Unconditional branch
   DECODE("11101xxxxxxxxxx1", Unimplemented) // Undefined instruction
   DECODE("11101iiiiiiiiiii", Unimplemented) // BLX suffix
   DECODE("11110iiiiiiiiiii", Unimplemented) // BL/BLX prefix
