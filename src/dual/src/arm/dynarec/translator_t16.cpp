@@ -16,6 +16,7 @@ TranslatorT16::TranslatorT16(CPU::Model cpu_model) : m_cpu_model{cpu_model} {
 }
 
 TranslatorT16::Code TranslatorT16::Translate(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
+  // TODO(fleroviux): detect and optimize BL(X) instructions. Or let the optimizer take care of that?
   const size_t hash = instruction >> 8;
   return (this->*m_handler_lut[hash])(r15, cpu_mode, instruction, emitter);
 }
@@ -665,6 +666,40 @@ TranslatorT16::Code TranslatorT16::Translate_UnconditionalBranch(u32 r15, ir::Mo
   return Code::Success;
 }
 
+TranslatorT16::Code TranslatorT16::Translate_BLXSuffix(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
+  const bool exchange = !bit::get_bit(instruction, 12u);
+
+  if(exchange && m_cpu_model == CPU::Model::ARM7) {
+    return Translate_Undefined(r15, cpu_mode, instruction, emitter);
+  }
+
+  const u32 imm_offset = bit::get_field(instruction, 0u, 11u) << 1;
+  const u32 return_address = (r15 - sizeof(u16)) | 1u;
+
+  const ir::U32Value& new_pc_value = emitter.ADD(emitter.LDGPR(ir::GPR::LR, cpu_mode), emitter.LDCONST(imm_offset));
+  emitter.STGPR(ir::GPR::LR, cpu_mode, emitter.LDCONST(return_address));
+  if(exchange) {
+    FlushExchange(emitter, new_pc_value);
+  } else {
+    Flush(emitter, new_pc_value);
+  }
+  return Code::Success;
+}
+
+TranslatorT16::Code TranslatorT16::Translate_BLXPrefix(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
+  u32 imm_offset = bit::get_field(instruction, 0u, 11u) << 12;
+  if(imm_offset & 0x400000u) {
+    imm_offset |= 0xFF800000u;
+  }
+  emitter.STGPR(ir::GPR::LR, cpu_mode, emitter.LDCONST(r15 + imm_offset));
+  AdvancePC(emitter, r15);
+  return Code::Success;
+}
+
+TranslatorT16::Code TranslatorT16::Translate_Undefined(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
+  ATOM_PANIC("unhandled undefined Thumb instruction: 0x{:04X}", instruction);
+}
+
 TranslatorT16::Code TranslatorT16::Translate_Unimplemented(u32, ir::Mode, u16, ir::Emitter&) {
   return Code::Fallback;
 }
@@ -764,14 +799,14 @@ TranslatorT16::HandlerFn TranslatorT16::GetInstructionHandler(u16 instruction) {
   DECODE("1011L10Rrrrrrrrr", PushPopRegList) // Push/pop register list
   DECODE("10111110iiiiiiii", Unimplemented) // Software breakpoint
   DECODE("1100Lnnnrrrrrrrr", LoadStoreMultiple) // Load/store multiple
-  DECODE("11011110xxxxxxxx", Unimplemented) // Undefined instruction
+  DECODE("11011110xxxxxxxx", Undefined) // Undefined instruction
   DECODE("11011111iiiiiiii", SoftwareInterrupt) // Software interrupt
   DECODE("1101cccciiiiiiii", ConditionalBranch) // Conditional branch
   DECODE("11100iiiiiiiiiii", UnconditionalBranch) // Unconditional branch
-  DECODE("11101xxxxxxxxxx1", Unimplemented) // Undefined instruction
-  DECODE("11101iiiiiiiiiii", Unimplemented) // BLX suffix
-  DECODE("11110iiiiiiiiiii", Unimplemented) // BL/BLX prefix
-  DECODE("11111iiiiiiiiiii", Unimplemented) // BL suffix
+  DECODE("11101xxxxxxxxxx1", Undefined) // Undefined instruction
+  DECODE("11101iiiiiiiiiii", BLXSuffix) // BLX suffix
+  DECODE("11110iiiiiiiiiii", BLXPrefix) // BL/BLX prefix
+  DECODE("11111iiiiiiiiiii", BLXSuffix) // BL suffix
 
   #undef DECODE
 

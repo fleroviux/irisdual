@@ -41,6 +41,9 @@ class TranslatorT16 {
     Code Translate_ConditionalBranch(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
     Code Translate_SoftwareInterrupt(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
     Code Translate_UnconditionalBranch(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
+    Code Translate_BLXSuffix(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
+    Code Translate_BLXPrefix(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
+    Code Translate_Undefined(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
     Code Translate_Unimplemented(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
 
   private:
