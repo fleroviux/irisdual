@@ -790,35 +790,19 @@ TranslatorT16::HandlerFn TranslatorT16::GetInstructionHandler(u16 instruction) {
     } \
   }
 
-  // TODO(fleroviux): remove legend stuff, since we don't use it?
-
-  /**
-   * Legend:
-   * o = Opcode
-   * i = Immediate, Offset, PC-relative offset, SP-relative offset
-   * m = Rm
-   * n = Rn
-   * d = Rd
-   * s = Rs
-   * c = condition
-   * r = register list
-   * B = byte-bit
-   * L = link-bit, load-bit
-   * R = push r14/pop r15
-   */
   DECODE("000110ommmnnnddd", AddSubtract) // Add/subtract register
   DECODE("000111oiiinnnddd", AddSubtract) // Add/subtract immediate
   DECODE("000ooiiiiimmmddd", ShiftByImm) // Shift by immediate
-  DECODE("001oonnniiiiiiii", AddSubCmpMovImm) // Add/subtract/compare/move immediate, NOTE: nnn is nnn and/or ddd
-  DECODE("010000oooosssddd", DataProcessingReg) // Data-processing register, NOTE: sss = Rm/Rs, ddd = Rd/Rn
-  DECODE("01000111LYmmmddd", BranchExchange) // Branch/exchange instruction set, Y = H2
-  DECODE("010001ooXYmmmddd", SpecialDataProcessing) // Special data processing, X=H1, Y=H2, ddd = Rd/Rn
+  DECODE("001oonnniiiiiiii", AddSubCmpMovImm) // Add/subtract/compare/move immediate
+  DECODE("010000oooosssddd", DataProcessingReg) // Data-processing register
+  DECODE("01000111LYmmmddd", BranchExchange) // Branch/exchange instruction set
+  DECODE("010001ooXYmmmddd", SpecialDataProcessing) // Special data processing
   DECODE("01001dddiiiiiiii", LoadFromLiteralPool) // Load from literal pool
   DECODE("0101ooommmnnnddd", LoadStoreRegOffset) // Load/store register offset
   DECODE("011BLiiiiinnnddd", LoadStoreWordByteImmOffset) // Load/store word/byte immediate offset
   DECODE("1000Liiiiinnnddd", LoadStoreHalfImmOffset) // Load/store halfword immediate offset
   DECODE("1001Ldddiiiiiiii", LoadStoreToFromStack) // Load/store to/from stack
-  DECODE("1010Xdddiiiiiiii", AddToSPOrPC) // Add to SP or PC, X = SP
+  DECODE("1010Xdddiiiiiiii", AddToSPOrPC) // Add to SP or PC
   DECODE("10110000oiiiiiii", AdjustStackPointer) // Adjust stack pointer
   DECODE("1011L10Rrrrrrrrr", PushPopRegList) // Push/pop register list
   DECODE("10111110iiiiiiii", Unimplemented) // Software breakpoint
