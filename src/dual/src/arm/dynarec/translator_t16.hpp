@@ -2,6 +2,7 @@
 #pragma once
 
 #include <dual/arm/cpu.hpp>
+#include <dual/arm/memory.hpp>
 #include <atom/integer.hpp>
 #include <array>
 
@@ -16,12 +17,13 @@ class TranslatorT16 {
       Fallback
     };
 
-    explicit TranslatorT16(CPU::Model cpu_model);
+    TranslatorT16(Memory& memory, CPU::Model cpu_model);
 
     void SetExceptionBase(u32 address) {
       m_exception_base = address;
     }
 
+    Code TransFun(u32 r15, ir::Mode cpu_mode);
     Code Translate(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
 
     Code Translate_ShiftByImm(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
@@ -82,6 +84,7 @@ class TranslatorT16 {
     // TODO(fleroviux): make this array static
     std::array<HandlerFn, 256u> m_handler_lut{};
 
+    Memory& m_memory;
     CPU::Model m_cpu_model;
     u32 m_exception_base{};
 };

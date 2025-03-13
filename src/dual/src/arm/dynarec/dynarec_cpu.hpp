@@ -66,6 +66,7 @@ class DynarecCPU final : public CPU {
     InterpreterCPU m_fallback_cpu;
     jit::State m_cpu_state{};
     Memory& m_memory;
+    Model m_cpu_model;
     std::unique_ptr<jit::Backend> m_backend{};
 
     jit::TranslatorA32 m_translator_a32{};

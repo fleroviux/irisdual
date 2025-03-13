@@ -5,14 +5,108 @@
 
 #include "translator_t16.hpp"
 
-bool debug_print_ir = false;
-
 namespace bit = atom::bit;
 
 namespace dual::arm::jit {
 
-TranslatorT16::TranslatorT16(CPU::Model cpu_model) : m_cpu_model{cpu_model} {
+TranslatorT16::TranslatorT16(Memory& memory, CPU::Model cpu_model)
+    : m_memory{memory}
+    , m_cpu_model{cpu_model} {
   BuildLUT();
+}
+
+TranslatorT16::Code TranslatorT16::TransFun(u32 r15, ir::Mode cpu_mode) {
+  /**
+   * Instructions that change control flow:
+   * ~ Branch/exchange instruction set (indirect branch with exchange)
+   * ~ Special Data Processing
+   *   - ADD and MOV with DST=r15 (indirect branch with exchange)
+   * ~ PushPopRegList
+   *   - POP with r-bit set (indirect branch with potential exchange)
+   * ~ Software breakpoint
+   * ~ Undefined (potentially) (exception)
+   * ~ Software Interrupt (exception)
+   * ~ Conditional branch (direct branch, conditional)
+   * ~ Unconditional branch (direct branch)
+   * ~ BL/BLX suffix (indirect-ish branch! can be part of a direct branch, but can be abused to be indirect.)
+   */
+
+  // TODO(fleroviux): write instructions into a buffer so that we don't have to fetch more than once?
+  // TODO(fleroviux): limit function size to avoid explosions if we're wrong about code vs data?
+
+  u32 current_pc = r15 - sizeof(u16) * 2u;
+  // u32 basic_block_entrypoint = current_pc;
+
+  for(int i = 0; i < 40; i++) { // loop limit is arbitrary for now
+    const u16 instruction = m_memory.ReadHalf(current_pc, Memory::Bus::Code);
+    fmt::print("inst 0x{:08X}: 0x{:04X}\n", current_pc, instruction);
+
+    // TODO(fleroviux): take special care of any instruction formats that may require certain decoding order.
+    // TODO(fleroviux): can we optimize this ugly if-chain neatly? Use a second LUT?
+    if(bit::match_pattern<"01000111????????">(instruction)) {
+      // Branch/exchange instruction set
+      // NOTES:
+      // - can be used to indirectly call another function or subroutine (i.e. switch case)
+      // - can also be used to return from a function, i.e.:
+      //   - BX LR
+      //   - POP {R1}; BX R1
+      // 1. For now let's just exit the function at BX, but add a heuristic later
+      fmt::print("control flow change: Branch/exchange instruction set\n");
+    } else if(bit::match_pattern<"010001?01????111">(instruction)) {
+      // Special Data Processing
+      // ADD R15, ...
+      // MOV R15, ...
+      // 1. Exit function here
+      fmt::print("control flow change: Special Data Processing\n");
+    } else if(bit::match_pattern<"10111101????????">(instruction)) {
+      // Push/pop register list
+      // POP {..., R15}
+      // 1. Exit function here.
+      fmt::print("control flow change: Push/pop register list\n");
+    } else if(bit::match_pattern<"10111110????????">(instruction)) {
+      // Software breakpoint
+      // 1. Exit function here
+      ATOM_PANIC("unhandled Thumb software breakpoint");
+    } else if(bit::match_pattern<"11011110????????">(instruction) || bit::match_pattern<"11101??????????1">(instruction)) {
+      // Undefined
+      // 1. Exit function here
+      ATOM_PANIC("unhandled undefined instruction");
+    } else if(bit::match_pattern<"11011111????????">(instruction)) {
+      // Software interrupt
+      // 1. Finish current basic block
+      // 2. Submit new basic block at next instruction
+      fmt::print("control flow change: Software interrupt\n");
+    } else if(bit::match_pattern<"1101????????????">(instruction)) {
+      // Conditional branch
+      const u32 imm_offset = (u32)(i32)(i8)bit::get_field(instruction, 0u, 8u) << 1;
+      const u32 next_pc_true  = current_pc + imm_offset + sizeof(u16) * 2u;
+      const u32 next_pc_false = current_pc + sizeof(u16);
+
+      // 1. Finish current basic block
+      // 2. Submit new basic block at both branch targets
+      fmt::print("control flow change: Conditional branch (targets: 0x{:08X}, 0x{:08X})\n", next_pc_true, next_pc_false);
+    } else if(bit::match_pattern<"11100???????????">(instruction)) {
+      // Unconditional branch
+      u32 imm_offset = bit::get_field(instruction, 0u, 11u);
+      if(imm_offset & 0x400u) {
+        imm_offset |= 0xFFFFF800u;
+      }
+      const u32 next_pc = current_pc + (imm_offset << 1) + sizeof(u16) * 2u;
+
+      // 1. Finish current basic block
+      // 2. Submit new basic block at branch target
+      fmt::print("control flow change: Unconditional branch (target: 0x{:08X})\n", next_pc);
+    } else if(bit::match_pattern<"111?1???????????">(instruction)) {
+      // BL(X) suffix
+      // 1. Finish current basic block
+      // 2. Submit new basic block at next instruction
+      fmt::print("control flow change: BL(X) suffix\n");
+    }
+
+    current_pc += sizeof(u16);
+  }
+
+  return Code::Success;
 }
 
 TranslatorT16::Code TranslatorT16::Translate(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {

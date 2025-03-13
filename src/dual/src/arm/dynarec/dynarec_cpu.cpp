@@ -9,8 +9,6 @@
 #include "ir/disassemble.hpp"
 #include "dynarec_cpu.hpp"
 
-extern bool debug_print_ir;
-
 namespace dual::arm {
 
 DynarecCPU::DynarecCPU(
@@ -21,7 +19,8 @@ DynarecCPU::DynarecCPU(
   std::span<const AttachCPn> coprocessor_table
 )   : m_fallback_cpu{memory, scheduler, cycle_counter, model, coprocessor_table}
     , m_memory{memory}
-    , m_translator_t16{model} {
+    , m_cpu_model{model}
+    , m_translator_t16{memory, model} {
   m_backend = std::make_unique<jit::InterpreterBackend>(m_cpu_state, m_memory);
   m_ir_passes.push_back(std::make_unique<jit::ir::GuestStateAccessRemovalPass>());
   m_ir_passes.push_back(std::make_unique<jit::ir::HostFlagPropagationPass>());
@@ -182,44 +181,49 @@ void DynarecCPU::Run(int cycles) {
 jit::ir::Function* DynarecCPU::TryJit() {
   using namespace jit;
 
-  static int stupid_counter = 0;
-  if((stupid_counter++ % 10) != 0) {
-    return nullptr;
-  }
-
   const u32 r15 = m_cpu_state.GetGPR(GPR::PC);
   const PSR cpsr = m_cpu_state.GetCPSR();
   const Mode cpu_mode = (Mode)cpsr.mode;
 
-  m_tmp_memory_arena.Reset();
-
-  // TODO: implement ir::FunctionBuilder, or something like that.
-  ir::Function* function = new(m_tmp_memory_arena.Allocate(sizeof(ir::Function))) ir::Function{}; // TODO: check failure
-  ir::BasicBlock* bb = new(m_tmp_memory_arena.Allocate(sizeof(ir::BasicBlock))) ir::BasicBlock{0u}; // TODO: check failure
-  function->basic_blocks.push_back(bb);
-
-  ir::Emitter emitter{*bb, m_tmp_memory_arena};
-
   if(cpsr.thumb == 0) {
-    const u32 instruction = m_memory.ReadWord(r15 - 8u, Memory::Bus::Code);
-
-    const TranslatorA32::Code code = m_translator_a32.Translate(r15, cpu_mode, instruction, emitter);
-    if(code == TranslatorA32::Code::Success) {
-      emitter.EXIT();
-      OptimizeFunction(*function);
-      return function;
-    }
+//    m_tmp_memory_arena.Reset();
+//
+//    // TODO: implement ir::FunctionBuilder, or something like that.
+//    ir::Function* function = new(m_tmp_memory_arena.Allocate(sizeof(ir::Function))) ir::Function{}; // TODO: check failure
+//    ir::BasicBlock* bb = new(m_tmp_memory_arena.Allocate(sizeof(ir::BasicBlock))) ir::BasicBlock{0u}; // TODO: check failure
+//    function->basic_blocks.push_back(bb);
+//
+//    ir::Emitter emitter{*bb, m_tmp_memory_arena};
+//
+//    const u32 instruction = m_memory.ReadWord(r15 - 8u, Memory::Bus::Code);
+//
+//    const TranslatorA32::Code code = m_translator_a32.Translate(r15, cpu_mode, instruction, emitter);
+//    if(code == TranslatorA32::Code::Success) {
+//      emitter.EXIT();
+//      OptimizeFunction(*function);
+//      return function;
+//    }
+    return nullptr;
   } else {
+    m_tmp_memory_arena.Reset();
+
+    // TODO: implement ir::FunctionBuilder, or something like that.
+    ir::Function* function = new(m_tmp_memory_arena.Allocate(sizeof(ir::Function))) ir::Function{}; // TODO: check failure
+    ir::BasicBlock* bb = new(m_tmp_memory_arena.Allocate(sizeof(ir::BasicBlock))) ir::BasicBlock{0u}; // TODO: check failure
+    function->basic_blocks.push_back(bb);
+
+    ir::Emitter emitter{*bb, m_tmp_memory_arena};
+
+    if(r15 == 0x02017854u) { // for pokeplatin
+      m_translator_t16.TransFun(r15, cpu_mode);
+    }
+
     const u16 instruction = m_memory.ReadHalf(r15 - 4u, Memory::Bus::Code);
 
     const TranslatorT16::Code code = m_translator_t16.Translate(r15, cpu_mode, instruction, emitter);
     if(code == TranslatorT16::Code::Success) {
       emitter.EXIT();
       OptimizeFunction(*function);
-      if(debug_print_ir) {
-        fmt::print("{:04X}:\n{}\n", instruction, ir::disassemble(*function));
-        debug_print_ir = false;
-      }
       return function;
     }
   }
