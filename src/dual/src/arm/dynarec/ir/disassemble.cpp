@@ -35,23 +35,32 @@ std::string disassemble(const BasicBlock& basic_block, const char* indent) {
 
   if(!basic_block.values.empty()) {
     for(const Value *value: basic_block.values) {
-      if(value->create_ref.instruction != nullptr) { // Skip orphaned values from instructions that no longer exist.
-        disassembled_code += indent + fmt::format("{} \tv{}\n", get_data_type_label(value->data_type), value->id);
+      Instruction* creating_instruction = value->create_ref.instruction;
+      if(creating_instruction == nullptr) {
+        // Skip orphaned values from instructions that no longer exist.
+        continue;
       }
+      if(creating_instruction->type == Instruction::Type::LDCONST) {
+        // We inline constants, so we do not need to disassemble any values created by LDCONST
+        continue;
+      }
+      disassembled_code += indent + fmt::format("{} \tv{}\n", get_data_type_label(value->data_type), value->id);
     }
     disassembled_code += "\n";
   }
 
   const Instruction* instruction = basic_block.head;
   while(instruction != nullptr) {
-    disassembled_code += indent + disassemble(*instruction) + "\n";
+    if(instruction->type != Instruction::Type::LDCONST) { // We inline constants, so do not disassemble LDCONST
+      disassembled_code += indent + disassemble(basic_block, *instruction) + "\n";
+    }
     instruction = instruction->next;
   }
 
   return disassembled_code;
 }
 
-std::string disassemble(const Instruction& instruction) {
+std::string disassemble(const BasicBlock& basic_block, const Instruction& instruction) {
   const size_t out_slot_count = instruction.out_slot_count;
   const size_t arg_slot_count = instruction.arg_slot_count;
 
@@ -90,7 +99,14 @@ std::string disassemble(const Instruction& instruction) {
         break;
       }
       case Input::Type::Value: {
-        disassembled_code += fmt::format("v{}", arg.AsValue());
+        Value::ID value_id = arg.AsValue();
+        Instruction* creating_instruction = basic_block.values[value_id]->create_ref.instruction;
+        if(creating_instruction->type == Instruction::Type::LDCONST) {
+          // TODO(fleroviux): call into a disassemble_operand function
+          disassembled_code += fmt::format("0x{:X}", creating_instruction->GetArg(0u).AsConstU32());
+        } else {
+          disassembled_code += fmt::format("v{}", arg.AsValue());
+        }
         break;
       }
       case Input::Type::GPR: {
@@ -103,7 +119,7 @@ std::string disassemble(const Instruction& instruction) {
         break;
       }
       case Input::Type::ConstU32: {
-        disassembled_code += fmt::format("0x{:08X}_u32", arg.AsConstU32());
+        disassembled_code += fmt::format("0x{:X}", arg.AsConstU32());
         break;
       }
       case Input::Type::Condition: {
