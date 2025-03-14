@@ -157,6 +157,7 @@ void DynarecCPU::Run(int cycles) {
     jit::ir::Function* function = TryJit();
 
     if(function) {
+      // TODO(fleroviux): add at least a basic level of cycle counting
       if(!using_jit) {
         CopyB2A_Slow(m_cpu_state, m_fallback_cpu);
         using_jit = true;
@@ -211,6 +212,7 @@ jit::ir::Function* DynarecCPU::TryJit() {
       ir::Function* function = m_translator_t16.TransFun(m_tmp_memory_arena, r15, cpu_mode);
       OptimizeFunction(*function);
       fmt::print("DECOMPILED FUN:\n{}\n", ir::disassemble(*function));
+      return function;
     }
 
     // TODO: implement ir::FunctionBuilder, or something like that.

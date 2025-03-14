@@ -4,6 +4,7 @@
 #include <algorithm> // FOR ANALYSER
 #include <bit>
 #include <unordered_set> // FOR ANALYSER
+#include <unordered_map> // FOR ANALYSER
 
 #include "translator_t16.hpp"
 
@@ -36,14 +37,30 @@ ir::Function* TranslatorT16::TransFun(atom::Arena& memory_arena, u32 r15, ir::Mo
   // TODO(fleroviux): write instructions into a buffer so that we don't have to fetch more than once?
   // TODO(fleroviux): limit function size to avoid explosions if we're wrong about code vs data?
 
+  struct Link {
+    enum class Type {
+      Exit,
+      UnconditionalBranch,
+      ConditionalBranch
+    };
+    Type type;
+    ir::Condition condition{};
+    u32 targets[2]{};
+
+    Link() : type{Type::Exit} {}
+    explicit Link(u32 target_address) : type{Type::UnconditionalBranch}, targets{target_address, target_address} {}
+    Link(ir::Condition condition, u32 target_address_true, u32 target_address_false) : type(Type::ConditionalBranch), condition{condition}, targets{target_address_true, target_address_false} {}
+  };
+
   struct BlockOfCode {
     u32 address_lo;
     u32 address_hi; // inclusive
+    Link link;
   };
 
   std::vector<BlockOfCode> blocks_of_code{};
 
-  const auto PushBlockOfCode = [&](u32 address_lo, u32 address_hi) {
+  const auto PushBlockOfCode = [&](u32 address_lo, u32 address_hi, Link link = {}) {
     const auto it = std::find_if(blocks_of_code.begin(), blocks_of_code.end(), [&](const BlockOfCode& block_of_code) {
       return address_lo <= block_of_code.address_hi;
     });
@@ -54,13 +71,14 @@ ir::Function* TranslatorT16::TransFun(atom::Arena& memory_arena, u32 r15, ir::Mo
       if(address_lo > it->address_lo) {
         const u32 saved_address_lo = it->address_lo;
         it->address_lo = address_lo;
+        it->link = link;
         blocks_of_code.insert(it, {saved_address_lo, (u32)(address_lo - sizeof(u16))});
       } else {
         fmt::print("insert {:08X} before {:08X}\n", address_lo, it->address_lo);
         blocks_of_code.insert(it, {address_lo, address_hi});
       }
     } else {
-      blocks_of_code.push_back({address_lo, address_hi});
+      blocks_of_code.push_back({address_lo, address_hi, link});
     }
   };
 
@@ -136,13 +154,14 @@ ir::Function* TranslatorT16::TransFun(atom::Arena& memory_arena, u32 r15, ir::Mo
       } else if(bit::match_pattern<"1101????????????">(instruction)) {
         // Conditional branch
         const u32 imm_offset = (u32)(i32)(i8)bit::get_field(instruction, 0u, 8u) << 1;
+        const ir::Condition condition = bit::get_field<u16, ir::Condition>(instruction, 8u, 4u);
         const u32 next_pc_true  = current_pc + imm_offset + sizeof(u16) * 2u;
         const u32 next_pc_false = current_pc + sizeof(u16);
 
         // 1. Finish current basic block
         // 2. Submit new basic block at both branch targets
         fmt::print("control flow change: Conditional branch (targets: 0x{:08X}, 0x{:08X})\n", next_pc_true, next_pc_false);
-        PushBlockOfCode(entrypoint, current_pc);
+        PushBlockOfCode(entrypoint, current_pc, Link{condition, next_pc_true, next_pc_false});
         decompile_queue.push_back(next_pc_true);
         decompile_queue.push_back(next_pc_false);
         break;
@@ -157,7 +176,7 @@ ir::Function* TranslatorT16::TransFun(atom::Arena& memory_arena, u32 r15, ir::Mo
         // 1. Finish current basic block
         // 2. Submit new basic block at branch target
         fmt::print("control flow change: Unconditional branch (target: 0x{:08X})\n", next_pc);
-        PushBlockOfCode(entrypoint, current_pc);
+        PushBlockOfCode(entrypoint, current_pc, Link{next_pc});
         decompile_queue.push_back(next_pc);
         break;
       } else if(bit::match_pattern<"111?1???????????">(instruction)) {
@@ -177,7 +196,17 @@ ir::Function* TranslatorT16::TransFun(atom::Arena& memory_arena, u32 r15, ir::Mo
   fmt::print("===============================\n");
   fmt::print("Blocks of code for 0x{:08X}:\n", function_entrypoint);
   for(const auto& block_of_code : blocks_of_code) {
-    fmt::print("\t0x{:08X} - 0x{:08X}\n", block_of_code.address_lo, block_of_code.address_hi);
+    fmt::print("\t0x{:08X} - 0x{:08X} link: ", block_of_code.address_lo, block_of_code.address_hi);
+
+    const auto& link = block_of_code.link;
+    switch(link.type) {
+      case Link::Type::Exit: fmt::print("exit"); break;
+      case Link::Type::UnconditionalBranch: fmt::print("b 0x{:08X}", link.targets[0]); break;
+      case Link::Type::ConditionalBranch: fmt::print("bcc {} 0x{:08X} 0x{:08X}", (int)link.condition, link.targets[0], link.targets[1]); break;
+      default: ATOM_PANIC("unhandled link type: {}", (int)link.type);
+    }
+
+    fmt::print("\n");
   }
   fmt::print("===============================\n");
 
@@ -186,11 +215,18 @@ ir::Function* TranslatorT16::TransFun(atom::Arena& memory_arena, u32 r15, ir::Mo
   // TODO: implement ir::FunctionBuilder, or something like that.
   ir::Function* function = new(memory_arena.Allocate(sizeof(ir::Function))) ir::Function{}; // TODO: check failure
 
+  std::unordered_map<u32, ir::BasicBlock*> address_to_basic_block{};
+
   u16 bb_index = 0u;
   for(const auto& block_of_code : blocks_of_code) {
-    ir::BasicBlock *bb = new(memory_arena.Allocate(sizeof(ir::BasicBlock))) ir::BasicBlock{bb_index++}; // TODO: check failure
+    ir::BasicBlock* bb = new(memory_arena.Allocate(sizeof(ir::BasicBlock))) ir::BasicBlock{bb_index++}; // TODO: check failure
     function->basic_blocks.push_back(bb);
+    address_to_basic_block[block_of_code.address_lo] = bb;
+  }
 
+  bb_index = 0;
+  for(const auto& block_of_code : blocks_of_code) {
+    ir::BasicBlock* bb = address_to_basic_block[block_of_code.address_lo];
     ir::Emitter emitter{*bb, memory_arena};
 
     for(u32 address = block_of_code.address_lo; address <= block_of_code.address_hi; address += sizeof(u16)) {
@@ -199,6 +235,25 @@ ir::Function* TranslatorT16::TransFun(atom::Arena& memory_arena, u32 r15, ir::Mo
         ATOM_PANIC("could not compile, got unsupported instruction");
       }
     }
+
+    const Link& link = block_of_code.link;
+    switch(link.type) {
+      case Link::Type::Exit: {
+        emitter.EXIT();
+        break;
+      }
+      case Link::Type::UnconditionalBranch: {
+        emitter.BR(*address_to_basic_block[link.targets[0]]);
+        break;
+      }
+      case Link::Type::ConditionalBranch: {
+        const ir::HostFlagsValue& hflag_value = emitter.CVT_NZCV_HFLAG(emitter.LDCPSR());
+        emitter.BR_IF(link.condition, hflag_value, *address_to_basic_block[link.targets[0]], *address_to_basic_block[link.targets[1]]);
+        break;
+      }
+    }
+
+    //emitter.EXIT();
   }
 
   return function;
