@@ -71,7 +71,7 @@ class DynarecCPU final : public CPU {
 
     jit::TranslatorA32 m_translator_a32{};
     jit::TranslatorT16 m_translator_t16;
-    atom::Arena m_tmp_memory_arena{16384u};
+    atom::Arena m_tmp_memory_arena{65536u};
     std::vector<std::unique_ptr<jit::ir::Pass>> m_ir_passes{};
 };
 

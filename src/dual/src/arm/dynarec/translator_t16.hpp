@@ -7,6 +7,7 @@
 #include <array>
 
 #include "ir/emitter.hpp"
+#include "ir/function.hpp"
 
 namespace dual::arm::jit {
 
@@ -23,7 +24,7 @@ class TranslatorT16 {
       m_exception_base = address;
     }
 
-    Code TransFun(u32 r15, ir::Mode cpu_mode);
+    ir::Function* TransFun(atom::Arena& memory_arena, u32 r15, ir::Mode cpu_mode);
     Code Translate(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);
 
     Code Translate_ShiftByImm(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter);

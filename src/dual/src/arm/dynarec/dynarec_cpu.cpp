@@ -207,16 +207,18 @@ jit::ir::Function* DynarecCPU::TryJit() {
   } else {
     m_tmp_memory_arena.Reset();
 
+    if(r15 == 0x02017854u) { // for pokeplatin
+      ir::Function* function = m_translator_t16.TransFun(m_tmp_memory_arena, r15, cpu_mode);
+      OptimizeFunction(*function);
+      fmt::print("DECOMPILED FUN:\n{}\n", ir::disassemble(*function));
+    }
+
     // TODO: implement ir::FunctionBuilder, or something like that.
     ir::Function* function = new(m_tmp_memory_arena.Allocate(sizeof(ir::Function))) ir::Function{}; // TODO: check failure
     ir::BasicBlock* bb = new(m_tmp_memory_arena.Allocate(sizeof(ir::BasicBlock))) ir::BasicBlock{0u}; // TODO: check failure
     function->basic_blocks.push_back(bb);
 
     ir::Emitter emitter{*bb, m_tmp_memory_arena};
-
-    if(r15 == 0x02017854u) { // for pokeplatin
-      m_translator_t16.TransFun(r15, cpu_mode);
-    }
 
     const u16 instruction = m_memory.ReadHalf(r15 - 4u, Memory::Bus::Code);
 

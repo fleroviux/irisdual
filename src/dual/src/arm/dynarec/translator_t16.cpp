@@ -1,7 +1,9 @@
 
 #include <atom/bit.hpp>
 #include <atom/panic.hpp>
+#include <algorithm> // FOR ANALYSER
 #include <bit>
+#include <unordered_set> // FOR ANALYSER
 
 #include "translator_t16.hpp"
 
@@ -15,7 +17,7 @@ TranslatorT16::TranslatorT16(Memory& memory, CPU::Model cpu_model)
   BuildLUT();
 }
 
-TranslatorT16::Code TranslatorT16::TransFun(u32 r15, ir::Mode cpu_mode) {
+ir::Function* TranslatorT16::TransFun(atom::Arena& memory_arena, u32 r15, ir::Mode cpu_mode) {
   /**
    * Instructions that change control flow:
    * ~ Branch/exchange instruction set (indirect branch with exchange)
@@ -34,79 +36,172 @@ TranslatorT16::Code TranslatorT16::TransFun(u32 r15, ir::Mode cpu_mode) {
   // TODO(fleroviux): write instructions into a buffer so that we don't have to fetch more than once?
   // TODO(fleroviux): limit function size to avoid explosions if we're wrong about code vs data?
 
-  u32 current_pc = r15 - sizeof(u16) * 2u;
-  // u32 basic_block_entrypoint = current_pc;
+  struct BlockOfCode {
+    u32 address_lo;
+    u32 address_hi; // inclusive
+  };
 
-  for(int i = 0; i < 40; i++) { // loop limit is arbitrary for now
-    const u16 instruction = m_memory.ReadHalf(current_pc, Memory::Bus::Code);
-    fmt::print("inst 0x{:08X}: 0x{:04X}\n", current_pc, instruction);
+  std::vector<BlockOfCode> blocks_of_code{};
 
-    // TODO(fleroviux): take special care of any instruction formats that may require certain decoding order.
-    // TODO(fleroviux): can we optimize this ugly if-chain neatly? Use a second LUT?
-    if(bit::match_pattern<"01000111????????">(instruction)) {
-      // Branch/exchange instruction set
-      // NOTES:
-      // - can be used to indirectly call another function or subroutine (i.e. switch case)
-      // - can also be used to return from a function, i.e.:
-      //   - BX LR
-      //   - POP {R1}; BX R1
-      // 1. For now let's just exit the function at BX, but add a heuristic later
-      fmt::print("control flow change: Branch/exchange instruction set\n");
-    } else if(bit::match_pattern<"010001?01????111">(instruction)) {
-      // Special Data Processing
-      // ADD R15, ...
-      // MOV R15, ...
-      // 1. Exit function here
-      fmt::print("control flow change: Special Data Processing\n");
-    } else if(bit::match_pattern<"10111101????????">(instruction)) {
-      // Push/pop register list
-      // POP {..., R15}
-      // 1. Exit function here.
-      fmt::print("control flow change: Push/pop register list\n");
-    } else if(bit::match_pattern<"10111110????????">(instruction)) {
-      // Software breakpoint
-      // 1. Exit function here
-      ATOM_PANIC("unhandled Thumb software breakpoint");
-    } else if(bit::match_pattern<"11011110????????">(instruction) || bit::match_pattern<"11101??????????1">(instruction)) {
-      // Undefined
-      // 1. Exit function here
-      ATOM_PANIC("unhandled undefined instruction");
-    } else if(bit::match_pattern<"11011111????????">(instruction)) {
-      // Software interrupt
-      // 1. Finish current basic block
-      // 2. Submit new basic block at next instruction
-      fmt::print("control flow change: Software interrupt\n");
-    } else if(bit::match_pattern<"1101????????????">(instruction)) {
-      // Conditional branch
-      const u32 imm_offset = (u32)(i32)(i8)bit::get_field(instruction, 0u, 8u) << 1;
-      const u32 next_pc_true  = current_pc + imm_offset + sizeof(u16) * 2u;
-      const u32 next_pc_false = current_pc + sizeof(u16);
-
-      // 1. Finish current basic block
-      // 2. Submit new basic block at both branch targets
-      fmt::print("control flow change: Conditional branch (targets: 0x{:08X}, 0x{:08X})\n", next_pc_true, next_pc_false);
-    } else if(bit::match_pattern<"11100???????????">(instruction)) {
-      // Unconditional branch
-      u32 imm_offset = bit::get_field(instruction, 0u, 11u);
-      if(imm_offset & 0x400u) {
-        imm_offset |= 0xFFFFF800u;
+  const auto PushBlockOfCode = [&](u32 address_lo, u32 address_hi) {
+    const auto it = std::find_if(blocks_of_code.begin(), blocks_of_code.end(), [&](const BlockOfCode& block_of_code) {
+      return address_lo <= block_of_code.address_hi;
+    });
+    if(it != blocks_of_code.end()) {
+      if(address_lo == it->address_lo) {
+        return; // I don't think this can actually happen
       }
-      const u32 next_pc = current_pc + (imm_offset << 1) + sizeof(u16) * 2u;
-
-      // 1. Finish current basic block
-      // 2. Submit new basic block at branch target
-      fmt::print("control flow change: Unconditional branch (target: 0x{:08X})\n", next_pc);
-    } else if(bit::match_pattern<"111?1???????????">(instruction)) {
-      // BL(X) suffix
-      // 1. Finish current basic block
-      // 2. Submit new basic block at next instruction
-      fmt::print("control flow change: BL(X) suffix\n");
+      if(address_lo > it->address_lo) {
+        const u32 saved_address_lo = it->address_lo;
+        it->address_lo = address_lo;
+        blocks_of_code.insert(it, {saved_address_lo, (u32)(address_lo - sizeof(u16))});
+      } else {
+        fmt::print("insert {:08X} before {:08X}\n", address_lo, it->address_lo);
+        blocks_of_code.insert(it, {address_lo, address_hi});
+      }
+    } else {
+      blocks_of_code.push_back({address_lo, address_hi});
     }
+  };
 
-    current_pc += sizeof(u16);
+  const u32 function_entrypoint = r15 - sizeof(u16) * 2u;
+  std::vector<u32> decompile_queue{function_entrypoint};
+  std::unordered_set<u32> entrypoints_seen{};
+
+  while(!decompile_queue.empty()) {
+    // Pop one entry from the decompile queue
+    u32 entrypoint = decompile_queue.front();;
+    decompile_queue.erase(decompile_queue.begin());
+
+    if(entrypoints_seen.contains(entrypoint)) {
+      continue;
+    }
+    entrypoints_seen.insert(entrypoint);
+
+    // Iterate instructions at address to identify further blocks of code
+    u32 current_pc = entrypoint;
+    for(int i = 0; i < 40; i++) { // loop limit is arbitrary for now
+      const u16 instruction = m_memory.ReadHalf(current_pc, Memory::Bus::Code);
+      fmt::print("inst 0x{:08X}: 0x{:04X}\n", current_pc, instruction);
+
+      // TODO(fleroviux): can we optimize this ugly if-chain neatly? Use a second LUT?
+      if(bit::match_pattern<"01000111????????">(instruction)) {
+        // Branch/exchange instruction set
+        // NOTES:
+        // - can be used to indirectly call another function or subroutine (i.e. switch case)
+        // - can also be used to return from a function, i.e.:
+        //   - BX LR
+        //   - POP {R1}; BX R1
+
+        // 1. Finish current basic block
+        // 2. Add heuristic to detect calls later, for now exit function here
+        fmt::print("control flow change: Branch/exchange instruction set\n");
+        PushBlockOfCode(entrypoint, current_pc);
+        break;
+      } else if(bit::match_pattern<"010001?01????111">(instruction)) {
+        // Special Data Processing
+        // ADD R15, ...
+        // MOV R15, ...
+        // 1. Finish current basic block
+        // 2. Exit function here
+        fmt::print("control flow change: Special Data Processing\n");
+        PushBlockOfCode(entrypoint, current_pc);
+        break;
+      } else if(bit::match_pattern<"10111101????????">(instruction)) {
+        // Push/pop register list
+        // POP {..., R15}
+        // 1. Finish current basic block
+        // 2. Exit function here.
+        fmt::print("control flow change: Push/pop register list\n");
+        PushBlockOfCode(entrypoint, current_pc);
+        break;
+      } else if(bit::match_pattern<"10111110????????">(instruction)) {
+        // Software breakpoint
+        // 1. Finish current basic block
+        // 2. Exit function here
+        ATOM_PANIC("unhandled Thumb software breakpoint");
+      } else if(bit::match_pattern<"11011110????????">(instruction) || bit::match_pattern<"11101??????????1">(instruction)) {
+        // Undefined
+        // 1. Finish current basic block
+        // 2. Exit function here
+        ATOM_PANIC("unhandled undefined instruction");
+      } else if(bit::match_pattern<"11011111????????">(instruction)) {
+        // Software interrupt
+        // 1. Finish current basic block
+        // 2. Submit new basic block at next instruction
+        fmt::print("control flow change: Software interrupt\n");
+        PushBlockOfCode(entrypoint, current_pc);
+        decompile_queue.push_back(current_pc + sizeof(u16));
+        break;
+      } else if(bit::match_pattern<"1101????????????">(instruction)) {
+        // Conditional branch
+        const u32 imm_offset = (u32)(i32)(i8)bit::get_field(instruction, 0u, 8u) << 1;
+        const u32 next_pc_true  = current_pc + imm_offset + sizeof(u16) * 2u;
+        const u32 next_pc_false = current_pc + sizeof(u16);
+
+        // 1. Finish current basic block
+        // 2. Submit new basic block at both branch targets
+        fmt::print("control flow change: Conditional branch (targets: 0x{:08X}, 0x{:08X})\n", next_pc_true, next_pc_false);
+        PushBlockOfCode(entrypoint, current_pc);
+        decompile_queue.push_back(next_pc_true);
+        decompile_queue.push_back(next_pc_false);
+        break;
+      } else if(bit::match_pattern<"11100???????????">(instruction)) {
+        // Unconditional branch
+        u32 imm_offset = bit::get_field(instruction, 0u, 11u);
+        if(imm_offset & 0x400u) {
+          imm_offset |= 0xFFFFF800u;
+        }
+        const u32 next_pc = current_pc + (imm_offset << 1) + sizeof(u16) * 2u;
+
+        // 1. Finish current basic block
+        // 2. Submit new basic block at branch target
+        fmt::print("control flow change: Unconditional branch (target: 0x{:08X})\n", next_pc);
+        PushBlockOfCode(entrypoint, current_pc);
+        decompile_queue.push_back(next_pc);
+        break;
+      } else if(bit::match_pattern<"111?1???????????">(instruction)) {
+        // BL(X) suffix
+        // 1. Finish current basic block
+        // 2. Submit new basic block at next instruction
+        fmt::print("control flow change: BL(X) suffix\n");
+        PushBlockOfCode(entrypoint, current_pc);
+        decompile_queue.push_back(current_pc + sizeof(u16));
+        break;
+      }
+
+      current_pc += sizeof(u16);
+    }
   }
 
-  return Code::Success;
+  fmt::print("===============================\n");
+  fmt::print("Blocks of code for 0x{:08X}:\n", function_entrypoint);
+  for(const auto& block_of_code : blocks_of_code) {
+    fmt::print("\t0x{:08X} - 0x{:08X}\n", block_of_code.address_lo, block_of_code.address_hi);
+  }
+  fmt::print("===============================\n");
+
+  // IR TRANSLATION TEST
+
+  // TODO: implement ir::FunctionBuilder, or something like that.
+  ir::Function* function = new(memory_arena.Allocate(sizeof(ir::Function))) ir::Function{}; // TODO: check failure
+
+  u16 bb_index = 0u;
+  for(const auto& block_of_code : blocks_of_code) {
+    ir::BasicBlock *bb = new(memory_arena.Allocate(sizeof(ir::BasicBlock))) ir::BasicBlock{bb_index++}; // TODO: check failure
+    function->basic_blocks.push_back(bb);
+
+    ir::Emitter emitter{*bb, memory_arena};
+
+    for(u32 address = block_of_code.address_lo; address <= block_of_code.address_hi; address += sizeof(u16)) {
+      Code code = Translate(address + sizeof(u16) * 2u, cpu_mode,  m_memory.ReadHalf(address, Memory::Bus::Code), emitter);
+      if(code != Code::Success) {
+        ATOM_PANIC("could not compile, got unsupported instruction");
+      }
+    }
+  }
+
+  return function;
 }
 
 TranslatorT16::Code TranslatorT16::Translate(u32 r15, ir::Mode cpu_mode, u16 instruction, ir::Emitter& emitter) {
