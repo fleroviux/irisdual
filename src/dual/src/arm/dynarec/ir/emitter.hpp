@@ -15,9 +15,13 @@ namespace dual::arm::jit::ir {
 
 class Emitter {
   public:
-    Emitter(BasicBlock& basic_block, atom::Arena& arena)
+    Emitter(BasicBlock& basic_block, atom::Arena& arena, Instruction* insert_location = nullptr)
         : m_basic_block{basic_block}
         , m_arena{arena} {
+      m_insert_location = insert_location;
+      if(m_insert_location == nullptr) {
+        m_insert_location = basic_block.tail;
+      }
     }
 
     const U32Value& LDCONST(u32 const_u32) {
@@ -221,7 +225,7 @@ class Emitter {
       static_assert(sizeof...(OutTypes)   <= Instruction::max_out_slots);
       static_assert(sizeof...(ArgTypes) <= Instruction::max_arg_slots);
 
-      Instruction& instruction = AppendInstruction(type, flags, sizeof...(ArgTypes), sizeof...(OutTypes));
+      Instruction& instruction = InsertInstruction(type, flags, sizeof...(ArgTypes), sizeof...(OutTypes));
 
       if constexpr(sizeof...(ArgTypes) != 0u) {
         SetArgs(instruction, 0, std::forward<ArgTypes>(args)...);
@@ -234,21 +238,29 @@ class Emitter {
       }
     }
 
-    Instruction& AppendInstruction(Type type, u16 flags, size_t arg_slot_count, size_t ret_slot_count) {
+    Instruction& InsertInstruction(Type type, u16 flags, size_t arg_slot_count, size_t ret_slot_count) {
       const auto instruction = (Instruction*)m_arena.Allocate(sizeof(Instruction));
       if(instruction == nullptr) [[unlikely]] {
         ATOM_PANIC("ran out of memory arena space");
       }
       new(instruction) Instruction{type, flags, (u8)arg_slot_count, (u8)ret_slot_count};
 
-      if(m_basic_block.head == nullptr) [[unlikely]] {
+      if(m_insert_location == nullptr) [[unlikely]] {
         m_basic_block.head = instruction;
         m_basic_block.tail = instruction;
       } else {
-        m_basic_block.tail->next = instruction;
-        instruction->prev = m_basic_block.tail;
-        m_basic_block.tail = instruction;
+        instruction->prev = m_insert_location;
+
+        if(m_insert_location->next) {
+          instruction->next = m_insert_location->next;
+          m_insert_location->next->prev = instruction;
+        } else {
+          m_basic_block.tail = instruction;
+        }
+        m_insert_location->next = instruction;
       }
+
+      m_insert_location = instruction;
 
       return *instruction;
     }
@@ -324,6 +336,7 @@ class Emitter {
     }
 
     BasicBlock& m_basic_block;
+    Instruction* m_insert_location;
     atom::Arena& m_arena;
 };
 
