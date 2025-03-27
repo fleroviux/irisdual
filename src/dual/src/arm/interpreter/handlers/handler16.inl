@@ -400,7 +400,7 @@ void Thumb_PushPop(u16 instruction) {
     if(rbit) {
       m_state.reg[15] = ReadWord(address);
       m_state.reg[13] = address + 4;
-      if(m_state.r15 & 1) {
+      if((m_state.r15 & 1) || m_model == Model::ARM7) {
         m_state.r15 &= ~1;
         ReloadPipeline16();
       } else {
