@@ -127,7 +127,11 @@ namespace dual::nds::gpu {
         m_clip_mtx_dirty = true;
         break;
       }
-      case 1: m_coordinate_mtx = Matrix4<Fixed20x12>::Identity(); break;
+      case 1: {
+        m_coordinate_mtx = Matrix4<Fixed20x12>::Identity();
+        m_clip_mtx_dirty = true;
+        break;
+      }
       case 2: {
         m_coordinate_mtx = Matrix4<Fixed20x12>::Identity();
         m_direction_mtx  = Matrix4<Fixed20x12>::Identity();
