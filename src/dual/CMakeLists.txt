@@ -13,6 +13,7 @@ set(SOURCES
   src/arm/dynarec/ir/passes/guest_state_access_removal_pass.cpp
   src/arm/dynarec/ir/passes/host_flag_propagation_pass.cpp
   src/arm/dynarec/ir/disassemble.cpp
+  src/arm/dynarec/analyzer.cpp
   src/arm/dynarec/dynarec_cpu.cpp
   src/arm/dynarec/state.cpp
   src/arm/dynarec/translator_a32.cpp
@@ -85,6 +86,7 @@ set(HEADERS
   src/arm/dynarec/ir/instruction.hpp
   src/arm/dynarec/ir/pass.hpp
   src/arm/dynarec/ir/value.hpp
+  src/arm/dynarec/analyzer.hpp
   src/arm/dynarec/dynarec_cpu.hpp
   src/arm/dynarec/state.hpp
   src/arm/dynarec/translator_a32.hpp
