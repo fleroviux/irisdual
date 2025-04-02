@@ -62,9 +62,8 @@ class TranslatorA32 {
     };
 
     Code Translate_DataProcessing(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter);
-    Code Translate_MRS(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter);
-    Code Translate_MSR_reg(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter);
-    Code Translate_MSR_imm(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter);
+    Code Translate_MoveStatusRegToReg(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter);
+    Code Translate_MoveRegOrImmToStatusReg(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter);
     Code Translate_Unimplemented(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter);
 
     static void UpdateFlags(ir::Emitter& emitter, u32 flag_set, const ir::HostFlagsValue& hflag_value);
