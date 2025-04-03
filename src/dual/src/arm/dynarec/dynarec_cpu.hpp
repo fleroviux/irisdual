@@ -60,7 +60,6 @@ class DynarecCPU final : public CPU {
   private:
     jit::ir::Function* TryJit();
 
-    void TestBackend();
     void OptimizeFunction(jit::ir::Function& function);
 
     InterpreterCPU m_fallback_cpu;
@@ -69,7 +68,7 @@ class DynarecCPU final : public CPU {
     Model m_cpu_model;
     std::unique_ptr<jit::Backend> m_backend{};
 
-    jit::TranslatorA32 m_translator_a32{};
+    jit::TranslatorA32 m_translator_a32;
     jit::TranslatorT16 m_translator_t16;
     atom::Arena m_tmp_memory_arena{65536u};
     std::vector<std::unique_ptr<jit::ir::Pass>> m_ir_passes{};

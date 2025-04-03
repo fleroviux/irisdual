@@ -1,6 +1,7 @@
 
 #include <atom/bit.hpp>
 #include <atom/panic.hpp>
+#include <bit>
 
 #include "translator_a32.hpp"
 
@@ -8,7 +9,7 @@ namespace bit = atom::bit;
 
 namespace dual::arm::jit {
 
-TranslatorA32::TranslatorA32() {
+TranslatorA32::TranslatorA32(CPU::Model cpu_model) : m_cpu_model{cpu_model} {
   BuildLUT();
 }
 
@@ -287,8 +288,163 @@ TranslatorA32::Code TranslatorA32::Translate_MoveRegOrImmToStatusReg(u32 r15, ir
   return Code::Success;
 }
 
+TranslatorA32::Code TranslatorA32::Translate_LoadStoreMultiple(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter) {
+  const u16 rlist = bit::get_field(instruction, 0u, 16u);
+  const ir::GPR reg_base = bit::get_field<u32, ir::GPR>(instruction, 16u, 4u);
+
+  const bool load = bit::get_bit(instruction, 20u);
+  const bool writeback = bit::get_bit(instruction, 21u);
+  const bool user_mode = bit::get_bit(instruction, 22u);
+  const bool add = bit::get_bit(instruction, 23u);
+  const bool pre_increment = bit::get_bit(instruction, 24u);
+
+  if(rlist == 0u) {
+    ATOM_PANIC("unhandled LDM/STM with empty rlist");
+  }
+
+  if(m_cpu_model == CPU::Model::ARM11 && bit::get_bit(rlist, (int)reg_base)) {
+    ATOM_PANIC("unhandled ARM11 LDM/STM with base register in rlist");
+  }
+
+  // TODO(fleroviux): simplify all the edge cases around writeback...?
+
+  const bool base_is_first = (rlist & ((1u << (int)reg_base) - 1u)) == 0u;
+  const bool base_is_last = (rlist >> (int)reg_base) == 1u;
+  const u32 bytes_transferred = std::popcount(rlist) * sizeof(u32);
+
+  // TODO(fleroviux): this can be simplified I think
+  const ir::U32Value* lo_address;
+  const ir::U32Value* hi_address;
+  const ir::U32Value* writeback_address;
+  if(add) {
+    lo_address = &emitter.LDGPR(reg_base, cpu_mode);
+    hi_address = &emitter.ADD(*lo_address, emitter.LDCONST(bytes_transferred));
+    writeback_address = hi_address;
+  } else {
+    hi_address = &emitter.LDGPR(reg_base, cpu_mode);
+    lo_address = &emitter.SUB(*hi_address, emitter.LDCONST(bytes_transferred));
+    writeback_address = lo_address;
+  }
+
+  AdvancePC(emitter, r15);
+
+  const bool loading_r15 = load && bit::get_bit(rlist, 15u);
+  const ir::Mode transfer_cpu_mode = (user_mode && !loading_r15) ? ir::Mode::User : cpu_mode;
+
+  // STM ARMv4: store new base unless it is the first register
+  // STM ARMv5: always store old base.
+  const bool early_writeback = m_cpu_model == CPU::Model::ARM7 && writeback && !load && !base_is_first;
+  if(early_writeback) {
+    emitter.STGPR(reg_base, cpu_mode, *writeback_address);
+  }
+
+  const ir::U32Value* address = lo_address;
+
+  for(int reg = 0; reg <= 15; reg++) {
+    if(!bit::get_bit(rlist, reg)) {
+      continue;
+    }
+
+    if(pre_increment == add) {
+      address = &emitter.ADD(*address, emitter.LDCONST(sizeof(u32)));
+    }
+
+    if(load) {
+      emitter.STGPR((ir::GPR)reg, transfer_cpu_mode, emitter.LDR(*address));
+    } else {
+      emitter.STR(*address, emitter.LDGPR((ir::GPR)reg, transfer_cpu_mode));
+    }
+
+    if(pre_increment != add) {
+      address = &emitter.ADD(*address, emitter.LDCONST(sizeof(u32)));
+    }
+  }
+
+  if(user_mode && loading_r15) {
+    // TODO: base writeback happens in which mode? (this is unpredictable)
+    // If writeback happens in the new mode, then this might be difficult
+    // to emulate because we cannot know the value of SPSR at compile-time.
+    emitter.STCPSR(emitter.LDSPSR(cpu_mode));
+  }
+
+  if(writeback) {
+    if(load) {
+      switch(m_cpu_model) {
+        case CPU::Model::ARM7: {
+          // LDM ARMv4: write back if base in not in the register list.
+          if(!bit::get_bit(rlist, (int)reg_base)) {
+            emitter.STGPR(reg_base, cpu_mode, *writeback_address);
+          }
+          break;
+        }
+        case CPU::Model::ARM9: {
+          // LDM ARMv5: write back if base is the only register or not the last register.
+          if(!base_is_last || rlist == (1u << (int)reg_base)) {
+            emitter.STGPR(reg_base, cpu_mode, *writeback_address);
+          }
+          break;
+        }
+        default: {
+          emitter.STGPR(reg_base, cpu_mode, *writeback_address);
+          break;
+        }
+      }
+    } else if(!early_writeback) {
+      emitter.STGPR(reg_base, cpu_mode, *writeback_address);
+    }
+  }
+
+  // Flush the pipeline if we loaded R15
+  if(loading_r15) {
+    if(user_mode) {
+      // CPSR has changed, we can't assume to still be in ARM mode.
+      // The code below is equivalent to `R15 = R15 + 8 - CPSR.thumb_bit * 4`:
+      const ir::U32Value& offset_value = emitter.SUB(
+        emitter.AND(
+          emitter.LSR(emitter.LDCPSR(), emitter.LDCONST(3u)),
+          emitter.LDCONST(4u)
+        ),
+        emitter.LDCONST(8u)
+      );
+
+      const ir::U32Value& old_pc_value = emitter.LDGPR(ir::GPR::PC, ir::Mode::System);
+      const ir::U32Value& new_pc_value = emitter.SUB(old_pc_value, offset_value);
+      emitter.STGPR(ir::GPR::PC, ir::Mode::System, new_pc_value);
+    } else if(m_cpu_model != CPU::Model::ARM7) {
+      FlushExchange(emitter, emitter.LDGPR(ir::GPR::PC, ir::Mode::System));
+    } else {
+      Flush(emitter, emitter.LDGPR(ir::GPR::PC, ir::Mode::System));
+    }
+  }
+
+  return Code::Success;
+}
+
 TranslatorA32::Code TranslatorA32::Translate_Unimplemented(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter) {
   return Code::Fallback;
+}
+
+void TranslatorA32::AdvancePC(ir::Emitter& emitter, u32 current_r15) {
+  emitter.STGPR(ir::GPR::PC, ir::Mode::System, emitter.LDCONST(current_r15 + sizeof(u32)));
+}
+
+void TranslatorA32::FlushExchange(ir::Emitter& emitter, const ir::U32Value& new_pc_value) {
+  const ir::U32Value& thumb_bit_value = emitter.AND(new_pc_value, emitter.LDCONST(1u));
+
+  // Update R15
+  // R15 = (new_pc_value & ~1) + 8 - thumb_bit * 4
+  const ir::U32Value& pc_offset_value = emitter.SUB(emitter.LDCONST(8u), emitter.LSL(thumb_bit_value, emitter.LDCONST(2u)));
+  emitter.STGPR(ir::GPR::PC, ir::Mode::System, emitter.ADD(emitter.BIC(new_pc_value, emitter.LDCONST(1u)), pc_offset_value));
+
+  // Update CPSR
+  // CPSR = CPSR & ~(1 << 5) | thumb_bit << 5
+  const ir::U32Value& cpsr_bic_thumb_bit = emitter.BIC(emitter.LDCPSR(), emitter.LDCONST(0x20u));
+  const ir::U32Value& cpsr_orr_thumb_bit = emitter.ORR(cpsr_bic_thumb_bit, emitter.LSL(thumb_bit_value, emitter.LDCONST(5u)));
+  emitter.STCPSR(cpsr_orr_thumb_bit);
+}
+
+void TranslatorA32::Flush(ir::Emitter& emitter, const ir::U32Value& new_pc_value) {
+  emitter.STGPR(ir::GPR::PC, ir::Mode::System, emitter.ADD(new_pc_value, emitter.LDCONST(8u)));
 }
 
 void TranslatorA32::UpdateFlags(ir::Emitter& emitter, u32 flag_set, const ir::HostFlagsValue& hflag_value) {
@@ -341,7 +497,7 @@ TranslatorA32::HandlerFn TranslatorA32::GetInstructionHandler(u32 instruction) {
   DECODE("cccc010xxxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented)  // Load/Store (Immediate Offset)
   DECODE("cccc011xxxxxxxxxxxxxxxxxxxx0xxxx", Unimplemented)  // Load/Store (Register Offset)
   DECODE("cccc011xxxxxxxxxxxxxxxxxxxx1xxxx", Unimplemented)  // Undefined instruction
-  DECODE("cccc100xxxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented)  // Load/store multiple
+  DECODE("cccc100xxxxxxxxxxxxxxxxxxxxxxxxx", LoadStoreMultiple)  // Load/store multiple
   DECODE("cccc101xxxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented)  // Branch and branch with link
   DECODE("cccc110xxxxxxxxxxxxxxxxxxxxxxxxx", Unimplemented)  // Coprocessor load/store and double register transfers
   DECODE("cccc1110xxxxxxxxxxxxxxxxxxx0xxxx", Unimplemented)  // Coprocessor data processing

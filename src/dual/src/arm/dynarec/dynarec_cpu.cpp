@@ -20,6 +20,7 @@ DynarecCPU::DynarecCPU(
 )   : m_fallback_cpu{memory, scheduler, cycle_counter, model, coprocessor_table}
     , m_memory{memory}
     , m_cpu_model{model}
+    , m_translator_a32{model}
     , m_translator_t16{memory, model} {
   m_backend = std::make_unique<jit::InterpreterBackend>(m_cpu_state, m_memory);
   m_ir_passes.push_back(std::make_unique<jit::ir::GuestStateAccessRemovalPass>());
@@ -33,8 +34,6 @@ DynarecCPU::DynarecCPU(
 }
 
 void DynarecCPU::Reset() {
-  TestBackend();
-
   m_fallback_cpu.Reset();
   m_cpu_state.Reset();
 }
@@ -187,33 +186,34 @@ jit::ir::Function* DynarecCPU::TryJit() {
   const Mode cpu_mode = (Mode)cpsr.mode;
 
   if(cpsr.thumb == 0) {
-//    m_tmp_memory_arena.Reset();
-//
-//    // TODO: implement ir::FunctionBuilder, or something like that.
-//    ir::Function* function = new(m_tmp_memory_arena.Allocate(sizeof(ir::Function))) ir::Function{}; // TODO: check failure
-//    ir::BasicBlock* bb = new(m_tmp_memory_arena.Allocate(sizeof(ir::BasicBlock))) ir::BasicBlock{0u}; // TODO: check failure
-//    function->basic_blocks.push_back(bb);
-//
-//    ir::Emitter emitter{*bb, m_tmp_memory_arena};
-//
-//    const u32 instruction = m_memory.ReadWord(r15 - 8u, Memory::Bus::Code);
-//
-//    const TranslatorA32::Code code = m_translator_a32.Translate(r15, cpu_mode, instruction, emitter);
-//    if(code == TranslatorA32::Code::Success) {
-//      emitter.EXIT();
-//      OptimizeFunction(*function);
-//      return function;
-//    }
-    return nullptr;
+    m_tmp_memory_arena.Reset();
+
+    // TODO: implement ir::FunctionBuilder, or something like that.
+    ir::Function* function = new(m_tmp_memory_arena.Allocate(sizeof(ir::Function))) ir::Function{}; // TODO: check failure
+    ir::BasicBlock* bb = new(m_tmp_memory_arena.Allocate(sizeof(ir::BasicBlock))) ir::BasicBlock{0u}; // TODO: check failure
+    function->basic_blocks.push_back(bb);
+
+    ir::Emitter emitter{*bb, m_tmp_memory_arena};
+
+    const u32 instruction = m_memory.ReadWord(r15 - 8u, Memory::Bus::Code);
+
+    const TranslatorA32::Code code = m_translator_a32.Translate(r15, cpu_mode, instruction, emitter);
+    if(code == TranslatorA32::Code::Success) {
+      emitter.EXIT();
+      OptimizeFunction(*function);
+      return function;
+    }
   } else {
     m_tmp_memory_arena.Reset();
 
-    if(r15 == 0x02017854u) { // for pokeplatin
-      ir::Function* function = m_translator_t16.TransFun(m_tmp_memory_arena, r15, cpu_mode);
-      OptimizeFunction(*function);
-      fmt::print("DECOMPILED FUN:\n{}\n", ir::disassemble(*function));
-      return function;
-    }
+//    if(r15 == 0x02017854u) { // for pokeplatin
+//      ir::Function* function = m_translator_t16.TransFun(m_tmp_memory_arena, r15, cpu_mode);
+//      OptimizeFunction(*function);
+//      fmt::print("DECOMPILED FUN:\n{}\n", ir::disassemble(*function));
+//      return function;
+//    }
+
+    // TODO: figure out why Mario Kart DS is broken
 
     // TODO: implement ir::FunctionBuilder, or something like that.
     ir::Function* function = new(m_tmp_memory_arena.Allocate(sizeof(ir::Function))) ir::Function{}; // TODO: check failure
@@ -233,57 +233,6 @@ jit::ir::Function* DynarecCPU::TryJit() {
   }
 
   return nullptr;
-}
-
-void DynarecCPU::TestBackend() {
-  using namespace jit;
-
-  ir::Function function{};
-
-  ir::BasicBlock* bb_loop = new(m_tmp_memory_arena.Allocate(sizeof(ir::BasicBlock))) ir::BasicBlock{0u}; // TODO: check failure
-  function.basic_blocks.push_back(bb_loop);
-
-  ir::BasicBlock* bb_exit = new(m_tmp_memory_arena.Allocate(sizeof(ir::BasicBlock))) ir::BasicBlock{1u}; // TODO: check failure
-  function.basic_blocks.push_back(bb_exit);
-
-  {
-    ir::Emitter emitter{*bb_loop, m_tmp_memory_arena};
-
-    const ir::HostFlagsValue* add_hflags;
-    const ir::U32Value& add_result = emitter.ADD(emitter.LDGPR(GPR::R0, Mode::User), emitter.LDCONST(0xFFFFFFFFu), &add_hflags);
-    emitter.STGPR(GPR::R0, Mode::User, add_result);
-
-    const ir::U32Value& cpsr_old = emitter.LDCPSR();
-    const ir::U32Value& nzcv_out = emitter.CVT_HFLAG_NZCV(*add_hflags);
-    const ir::U32Value& cpsr_new = emitter.BITCMB(cpsr_old, nzcv_out, 0xF0000000u);
-    emitter.STCPSR(cpsr_new);
-
-    emitter.BR_IF(ir::Condition::EQ, emitter.CVT_NZCV_HFLAG(emitter.LDCPSR()), *bb_exit, *bb_loop);
-  }
-
-  {
-    ir::Emitter emitter{*bb_exit, m_tmp_memory_arena};
-    emitter.EXIT();
-  }
-
-  fmt::print("Original IR function (before optimization):\n{}\n", ir::disassemble(function));
-
-  const auto PrintCpuState = [&]() {
-    fmt::print("CPU STATE:\n");
-    for(int reg = 0; reg < 16; reg++) {
-      fmt::print("\tR{} \t= 0x{:08X}\n", reg, m_cpu_state.GetGPR((GPR)reg));
-    }
-    fmt::print("\tCPSR \t= 0x{:08X}\n", m_cpu_state.GetCPSR().word);
-    fmt::print("\tSPSR \t= 0x{:08X}\n", m_cpu_state.GetSPSR((Mode)m_cpu_state.GetCPSR().mode).word);
-  };
-  m_cpu_state.Reset();
-  m_cpu_state.SetGPR(GPR::R0, 256);
-  PrintCpuState();
-  OptimizeFunction(function);
-  m_backend->Execute(function, true);
-  PrintCpuState();
-
-  m_tmp_memory_arena.Reset();
 }
 
 void DynarecCPU::OptimizeFunction(jit::ir::Function& function) {

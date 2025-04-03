@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include <dual/arm/cpu.hpp>
 #include <atom/integer.hpp>
 #include <array>
 
@@ -15,7 +16,7 @@ class TranslatorA32 {
       Fallback
     };
 
-    TranslatorA32();
+    explicit TranslatorA32(CPU::Model cpu_model);
 
     Code Translate(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter);
 
@@ -64,16 +65,23 @@ class TranslatorA32 {
     Code Translate_DataProcessing(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter);
     Code Translate_MoveStatusRegToReg(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter);
     Code Translate_MoveRegOrImmToStatusReg(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter);
+    Code Translate_LoadStoreMultiple(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter);
     Code Translate_Unimplemented(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter);
 
-    static void UpdateFlags(ir::Emitter& emitter, u32 flag_set, const ir::HostFlagsValue& hflag_value);
-    static void UpdateFlags(ir::Emitter& emitter, u32 flag_set, const ir::U32Value& nzcv_value);
+    void AdvancePC(ir::Emitter& emitter, u32 current_r15);
+    void FlushExchange(ir::Emitter& emitter, const ir::U32Value& new_pc_value);
+    void Flush(ir::Emitter& emitter, const ir::U32Value& new_pc_value);
+    void UpdateFlags(ir::Emitter& emitter, u32 flag_set, const ir::HostFlagsValue& hflag_value);
+    void UpdateFlags(ir::Emitter& emitter, u32 flag_set, const ir::U32Value& nzcv_value);
 
     void BuildLUT();
 
     static HandlerFn GetInstructionHandler(u32 instruction);
 
+    // TODO(fleroviux): make this array static
     std::array<HandlerFn, 4096u> m_handler_lut{};
+
+    CPU::Model m_cpu_model;
 };
 
 } // namespace dual::arm::jit
