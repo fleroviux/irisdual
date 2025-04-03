@@ -30,6 +30,8 @@ TranslatorA32::Code TranslatorA32::Translate(u32 r15, CPU::Mode cpu_mode, u32 in
 }
 
 TranslatorA32::Code TranslatorA32::Translate_DataProcessing(u32 r15, ir::Mode cpu_mode, u32 instruction, ir::Emitter& emitter) {
+  // TODO(fleroviux): redo and finish this
+
   const ir::GPR reg_dst = bit::get_field<u32, ir::GPR>(instruction, 12u, 4u);
   const ir::GPR reg_lhs = bit::get_field<u32, ir::GPR>(instruction, 16u, 4u);
   const bool set_flags = bit::get_bit(instruction, 20);
