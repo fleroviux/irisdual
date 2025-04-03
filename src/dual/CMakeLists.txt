@@ -5,9 +5,6 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(SOURCES
-  src/arm/dynarec/backend/arm64/mir/disassemble.cpp
-  src/arm/dynarec/backend/arm64/arm64_backend.cpp
-  src/arm/dynarec/backend/arm64/arm64_lowering_pass.cpp
   src/arm/dynarec/backend/interpreter/backend.cpp
   src/arm/dynarec/ir/passes/dead_code_removal_pass.cpp
   src/arm/dynarec/ir/passes/guest_state_access_removal_pass.cpp
@@ -63,16 +60,6 @@ set(SOURCES
 )
 
 set(HEADERS
-  src/arm/dynarec/backend/arm64/mir/address.hpp
-  src/arm/dynarec/backend/arm64/mir/basic_block.hpp
-  src/arm/dynarec/backend/arm64/mir/disassemble.hpp
-  src/arm/dynarec/backend/arm64/mir/emitter.hpp
-  src/arm/dynarec/backend/arm64/mir/host_reg.hpp
-  src/arm/dynarec/backend/arm64/mir/instruction.hpp
-  src/arm/dynarec/backend/arm64/mir/operand.hpp
-  src/arm/dynarec/backend/arm64/arm64_backend.hpp
-  src/arm/dynarec/backend/arm64/arm64_lowering_pass.hpp
-  src/arm/dynarec/backend/arm64/arm64_value_location.hpp
   src/arm/dynarec/backend/interpreter/backend.hpp
   src/arm/dynarec/backend/backend.hpp
   src/arm/dynarec/ir/passes/dead_code_removal_pass.hpp
