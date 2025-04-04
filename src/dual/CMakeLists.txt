@@ -27,6 +27,7 @@ set(SOURCES
   src/nds/video_unit/gpu/command_processor/command_processor.cpp
   src/nds/video_unit/gpu/command_processor/geometry.cpp
   src/nds/video_unit/gpu/command_processor/matrix.cpp
+  src/nds/video_unit/gpu/renderer/mgpu_hardware/mgpu_hardware_renderer.cpp
   src/nds/video_unit/gpu/renderer/software/edge_marking.cpp
   src/nds/video_unit/gpu/renderer/software/fog.cpp
   src/nds/video_unit/gpu/renderer/software/rasterizer.cpp
@@ -58,6 +59,8 @@ set(HEADERS
   src/arm/interpreter/tablegen/gen_arm.hpp
   src/arm/interpreter/tablegen/gen_thumb.hpp
   src/arm/interpreter/interpreter_cpu.hpp
+  src/nds/video_unit/gpu/renderer/mgpu_hardware/shader/triangle.frag.h
+  src/nds/video_unit/gpu/renderer/mgpu_hardware/shader/triangle.vert.h
   src/nds/video_unit/gpu/renderer/software/edge.hpp
   src/nds/video_unit/gpu/renderer/software/interpolator.hpp
 )
@@ -85,6 +88,7 @@ set(HEADERS_PUBLIC
   include/dual/nds/backup/flash.hpp
   include/dual/nds/video_unit/gpu/renderer/renderer_base.hpp
   include/dual/nds/video_unit/gpu/renderer/software_renderer.hpp
+  include/dual/nds/video_unit/gpu/renderer/mgpu_hardware_renderer.hpp
   include/dual/nds/video_unit/gpu/command_processor.hpp
   include/dual/nds/video_unit/gpu/geometry_engine.hpp
   include/dual/nds/video_unit/gpu/gpu.hpp
@@ -111,9 +115,18 @@ if(DUAL_ENABLE_JIT)
   list(APPEND HEADERS src/arm/jit/lunatic_cpu.hpp)
 endif()
 
+# MGPU hardware renderer test
+if(APPLE)
+  # TODO: write SDL2 "plugin" for mgpu to simplify this mess
+  enable_language(OBJCXX)
+  list(APPEND SOURCES
+    src/nds/video_unit/gpu/renderer/mgpu_hardware/tmp_cocoa.mm
+  )
+endif()
+
 add_library(dual ${SOURCES} ${HEADERS} ${HEADERS_PUBLIC})
 
-target_link_libraries(dual PUBLIC atom-common atom-logger atom-math)
+target_link_libraries(dual PUBLIC atom-common atom-logger atom-math mgpu)
 if(DUAL_ENABLE_JIT)
   target_link_libraries(dual PRIVATE lunatic)
   target_compile_definitions(dual PUBLIC DUAL_ENABLE_JIT)
@@ -126,4 +139,11 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   target_compile_options(dual PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fbracket-depth=8192>)
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
   target_compile_options(dual PRIVATE /bigobj)
+endif()
+
+# MGPU hardware renderer test
+find_package(SDL2 REQUIRED)
+target_link_libraries(dual PRIVATE SDL2::SDL2)
+if(APPLE)
+  target_link_libraries(dual PRIVATE "-framework Cocoa" "-framework QuartzCore")
 endif()

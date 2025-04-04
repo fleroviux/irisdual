@@ -4,3 +4,6 @@
 [submodule "external/lunatic"]
 	path = external/lunatic
 	url = https://github.com/fleroviux/lunatic
+[submodule "external/mgpu"]
+	path = external/mgpu
+	url = git@github.com:ZephyrEngine/mgpu.git
