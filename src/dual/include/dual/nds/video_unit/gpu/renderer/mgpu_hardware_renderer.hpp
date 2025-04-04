@@ -52,20 +52,20 @@ class MGPUHardwareRenderer final : public RendererBase {
 
     struct BufferVertex {
       // clip-space position
-      float x;
-      float y;
-      float z;
-      float w;
+      f32 x;
+      f32 y;
+      f32 z;
+      f32 w;
 
       // vertex color
-      float r;
-      float g;
-      float b;
-      float a;
+      f32 r;
+      f32 g;
+      f32 b;
+      f32 a;
 
       // texture coordinate
-      float s;
-      float t;
+      f32 s;
+      f32 t;
     } __attribute__((packed));
 
     IO& m_io;
@@ -77,8 +77,11 @@ class MGPUHardwareRenderer final : public RendererBase {
     MGPUSurface m_mgpu_surface{};
     MGPUDevice m_mgpu_device{};
     MGPUSwapChain m_mgpu_swap_chain{};
-    std::vector<MGPUTexture> m_mgpu_swap_chain_textures{};
-    std::vector<MGPUTextureView> m_mgpu_swap_chain_texture_views{};
+    std::vector<MGPUTexture> m_mgpu_swap_chain_color_textures{};
+    std::vector<MGPUTexture> m_mgpu_swap_chain_depth_textures{};
+    std::vector<MGPUTextureView> m_mgpu_swap_chain_color_texture_views{};
+    std::vector<MGPUTextureView> m_mgpu_swap_chain_depth_texture_views{};
+
     MGPUBuffer m_mgpu_vbo{};
     MGPUShaderModule m_mgpu_vert_shader{};
     MGPUShaderModule m_mgpu_frag_shader{};
