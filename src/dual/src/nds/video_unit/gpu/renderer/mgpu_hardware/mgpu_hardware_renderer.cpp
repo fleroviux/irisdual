@@ -161,7 +161,7 @@ MGPUHardwareRenderer::MGPUHardwareRenderer(
      0.0f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f
   };
   const MGPUBufferCreateInfo vbo_create_info{
-    .size = sizeof(vertices),
+    .size = k_total_vertices * sizeof(BufferVertex),
     .usage = MGPU_BUFFER_USAGE_VERTEX_BUFFER,
     .flags = MGPU_BUFFER_FLAGS_HOST_VISIBLE
   };
@@ -286,6 +286,34 @@ void MGPUHardwareRenderer::Render(const Viewport& viewport, std::span<const Poly
   MGPU_CHECK(mgpuSwapChainAcquireNextTexture(m_mgpu_swap_chain, &texture_index));
 
   MGPU_CHECK(mgpuCommandListClear(m_mgpu_cmd_list));
+
+  // Generate and upload vertex data
+  {
+    m_vbo_data.Clear();
+
+    for(const auto& polygon : polygons) {
+      for(size_t i = 1; i < polygon->vertices.Size() - 1; i++) {
+        for(const size_t k : {(size_t)0, i, i + 1}) {
+          auto vert = polygon->vertices[k];
+
+          const f32 position_x =  (f32)vert->position.X().Raw() / (f32)(1 << 12);
+          const f32 position_y = -(f32)vert->position.Y().Raw() / (f32)(1 << 12);
+          const f32 position_z =  (f32)vert->position.Z().Raw() / (f32)(1 << 12);
+          const f32 position_w =  (f32)vert->position.W().Raw() / (f32)(1 << 12);
+
+          const f32 color_a = (f32)vert->color.A().Raw() / (f32)(1 << 6);
+          const f32 color_r = (f32)vert->color.R().Raw() / (f32)(1 << 6);
+          const f32 color_g = (f32)vert->color.G().Raw() / (f32)(1 << 6);
+          const f32 color_b = (f32)vert->color.B().Raw() / (f32)(1 << 6);
+
+          const f32 texcoord_s = (f32)vert->uv.X().Raw() / (f32)(1 << 4);
+          const f32 texcoord_t = (f32)vert->uv.Y().Raw() / (f32)(1 << 4);
+
+          m_vbo_data.PushBack({position_x, position_y, position_z, position_w, color_r, color_g, color_b, color_a, texcoord_s, texcoord_t});
+        }
+      }
+    }
+  }
 
   const MGPURenderPassColorAttachment render_pass_color_attachments[1] {
     {
