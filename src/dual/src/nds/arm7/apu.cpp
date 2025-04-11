@@ -87,7 +87,7 @@ namespace dual::nds::arm7 {
         samples[1] += channel.current_sample * volume * panning;
       }
 
-      for(f32& sample : samples) sample = std::clamp(sample * master_volume, -1.f, +1.f);
+      for(f32& sample : samples) sample = 0.0f;//std::clamp(sample * master_volume, -1.f, +1.f);
     }
 
     m_audio_buffer.PushBack((i16)(samples[0] * 32767));

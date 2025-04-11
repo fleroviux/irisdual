@@ -36,8 +36,10 @@ MGPUHardwareRenderer::MGPUHardwareRenderer(
     SDL_WINDOW_VULKAN
   );
 
+  // Create MGPU instance
   MGPU_CHECK(mgpuCreateInstance(MGPU_BACKEND_TYPE_VULKAN, &m_mgpu_instance));
 
+  // Create surface
   {
     SDL_SysWMinfo wm_info{};
     SDL_GetWindowWMInfo(m_sdl_window, &wm_info);
@@ -59,6 +61,8 @@ MGPUHardwareRenderer::MGPUHardwareRenderer(
 
     MGPU_CHECK(mgpuInstanceCreateSurface(m_mgpu_instance, &surface_create_info, &m_mgpu_surface));
   }
+
+  // Pick physical device
 
   uint32_t mgpu_physical_device_count{};
   std::vector<MGPUPhysicalDevice> mgpu_physical_devices{};
@@ -90,7 +94,7 @@ MGPUHardwareRenderer::MGPUHardwareRenderer(
 
   MGPU_CHECK(mgpuPhysicalDeviceCreateDevice(mgpu_physical_device, &m_mgpu_device));
 
-  // Swap Chain creation
+  // Create swap chain and the associated depth buffers
   {
     uint32_t surface_format_count{};
     std::vector<MGPUSurfaceFormat> surface_formats{};
@@ -187,12 +191,114 @@ MGPUHardwareRenderer::MGPUHardwareRenderer(
     }
   }
 
+  // Create our vertex buffer
   const MGPUBufferCreateInfo vbo_create_info{
     .size = k_total_vertices * sizeof(BufferVertex),
     .usage = MGPU_BUFFER_USAGE_VERTEX_BUFFER | MGPU_BUFFER_USAGE_COPY_DST,
-    .flags = MGPU_BUFFER_FLAGS_HOST_VISIBLE
+    .flags = 0//MGPU_BUFFER_FLAGS_HOST_VISIBLE
   };
   MGPU_CHECK(mgpuDeviceCreateBuffer(m_mgpu_device, &vbo_create_info, &m_mgpu_vbo));
+
+  // Create our uniform buffer
+  const MGPUBufferCreateInfo ubo_create_info{
+    .size = sizeof(f32) * 4u,
+    .usage = MGPU_BUFFER_USAGE_UNIFORM_BUFFER | MGPU_BUFFER_USAGE_COPY_DST,
+    .flags = 0
+  };
+  MGPU_CHECK(mgpuDeviceCreateBuffer(m_mgpu_device, &ubo_create_info, &m_mgpu_test_ubo));
+
+  // Create our test texture
+  const MGPUTextureCreateInfo texture_create_info{
+    .format = MGPU_TEXTURE_FORMAT_B8G8R8A8_SRGB,
+    .type = MGPU_TEXTURE_TYPE_2D,
+    .extent = {
+      .width = 32u,
+      .height = 32u,
+      .depth = 1u
+    },
+    .mip_count = 1u,
+    .array_layer_count = 1u,
+    .usage = MGPU_TEXTURE_USAGE_SAMPLED | MGPU_TEXTURE_USAGE_COPY_DST
+  };
+  MGPU_CHECK(mgpuDeviceCreateTexture(m_mgpu_device, &texture_create_info, &m_mgpu_test_texture));
+
+  // Create our test texture view
+  const MGPUTextureViewCreateInfo texture_view_create_info{
+    .type = MGPU_TEXTURE_VIEW_TYPE_2D,
+    .format = MGPU_TEXTURE_FORMAT_B8G8R8A8_SRGB,
+    .aspect = MGPU_TEXTURE_ASPECT_COLOR,
+    .base_mip = 0u,
+    .mip_count = 1u,
+    .base_array_layer = 0u,
+    .array_layer_count = 1u
+  };
+  MGPU_CHECK(mgpuTextureCreateView(m_mgpu_test_texture, &texture_view_create_info, &m_mgpu_test_texture_view));
+
+  // Create our test sampler
+  const MGPUSamplerCreateInfo sampler_create_info{
+    .mag_filter = MGPU_TEXTURE_FILTER_NEAREST,
+    .min_filter = MGPU_TEXTURE_FILTER_NEAREST,
+    .mip_filter = MGPU_TEXTURE_FILTER_NEAREST,
+    .address_mode_u = MGPU_SAMPLER_ADDRESS_MODE_REPEAT,
+    .address_mode_v = MGPU_SAMPLER_ADDRESS_MODE_REPEAT,
+    .address_mode_w = MGPU_SAMPLER_ADDRESS_MODE_REPEAT,
+    .mip_lod_bias = 0.0f,
+    .anisotropy_enable = false,
+    .max_anisotropy = 0.0f,
+    .compare_enable = false,
+    .compare_op = MGPU_COMPARE_OP_NEVER,
+    .min_lod = 0.0f,
+    .max_lod = 0.0f
+  };
+  MGPU_CHECK(mgpuDeviceCreateSampler(m_mgpu_device, &sampler_create_info, &m_mgpu_test_sampler));
+
+  // Create the resource set layout
+  const MGPUResourceSetLayoutBinding rset_layout_bindings[] {
+    {
+      .binding = 0u,
+      .type = MGPU_RESOURCE_BINDING_TYPE_UNIFORM_BUFFER,
+      .visibility = MGPU_SHADER_STAGE_ALL
+    },
+    {
+      .binding = 1u,
+      .type = MGPU_RESOURCE_BINDING_TYPE_TEXTURE_AND_SAMPLER,
+      .visibility = MGPU_SHADER_STAGE_FRAGMENT
+    }
+  };
+  const MGPUResourceSetLayoutCreateInfo rset_layout_create_info{
+    .binding_count = sizeof(rset_layout_bindings) / sizeof(MGPUResourceSetLayoutBinding),
+    .bindings = rset_layout_bindings
+  };
+  MGPU_CHECK(mgpuDeviceCreateResourceSetLayout(m_mgpu_device, &rset_layout_create_info, &m_mgpu_resource_set_layout));
+
+  // Create a resource set
+  const MGPUResourceSetBinding rset_bindings[] {
+    {
+      .binding = 0u,
+      .type = MGPU_RESOURCE_BINDING_TYPE_UNIFORM_BUFFER,
+      .buffer = {
+        .buffer = m_mgpu_test_ubo,
+        .offset = 0u,
+        .size = MGPU_WHOLE_SIZE
+      }
+    },
+    {
+      .binding = 1u,
+      .type = MGPU_RESOURCE_BINDING_TYPE_TEXTURE_AND_SAMPLER,
+      .texture = {
+        .texture_view = m_mgpu_test_texture_view,
+        .sampler = m_mgpu_test_sampler
+      }
+    }
+  };
+  const MGPUResourceSetCreateInfo rset_create_info{
+    .layout = m_mgpu_resource_set_layout,
+    .binding_count = sizeof(rset_bindings) / sizeof(MGPUResourceSetBinding),
+    .bindings = rset_bindings
+  };
+  MGPU_CHECK(mgpuDeviceCreateResourceSet(m_mgpu_device, &rset_create_info, &m_mgpu_resource_set));
+
+  // Create pipeline state objects
 
   MGPU_CHECK(mgpuDeviceCreateShaderModule(m_mgpu_device, triangle_vert, sizeof(triangle_vert), &m_mgpu_vert_shader));
   MGPU_CHECK(mgpuDeviceCreateShaderModule(m_mgpu_device, triangle_frag, sizeof(triangle_frag), &m_mgpu_frag_shader));
@@ -211,7 +317,9 @@ MGPUHardwareRenderer::MGPUHardwareRenderer(
   };
   const MGPUShaderProgramCreateInfo shader_program_create_info{
     .shader_stage_count = 2u,
-    .shader_stages = shader_stages
+    .shader_stages = shader_stages,
+    .resource_set_count = 1u,
+    .resource_set_layouts = &m_mgpu_resource_set_layout
   };
   MGPU_CHECK(mgpuDeviceCreateShaderProgram(m_mgpu_device, &shader_program_create_info, &m_mgpu_shader_program));
 
@@ -286,13 +394,24 @@ MGPUHardwareRenderer::MGPUHardwareRenderer(
   };
   MGPU_CHECK(mgpuDeviceCreateVertexInputState(m_mgpu_device, &vertex_input_state_create_info, &m_mgpu_vertex_input_state));
 
+  const MGPUDepthStencilStateCreateInfo depth_stencil_state_create_info{
+    .depth_test_enable = true,
+    .depth_write_enable = true,
+    .depth_compare_op = MGPU_COMPARE_OP_LESS,
+    .stencil_test_enable = false
+  };
+  MGPU_CHECK(mgpuDeviceCreateDepthStencilState(m_mgpu_device, &depth_stencil_state_create_info, &m_mgpu_depth_stencil_state));
+
+  // Create a command list
   MGPU_CHECK(mgpuDeviceCreateCommandList(m_mgpu_device, &m_mgpu_cmd_list));
 
+  // Finally get our graphics queue
   m_mgpu_queue = mgpuDeviceGetQueue(m_mgpu_device, MGPU_QUEUE_TYPE_GRAPHICS_COMPUTE);
 }
 
 MGPUHardwareRenderer::~MGPUHardwareRenderer() {
   mgpuCommandListDestroy(m_mgpu_cmd_list);
+  mgpuDepthStencilStateDestroy(m_mgpu_depth_stencil_state);
   mgpuVertexInputStateDestroy(m_mgpu_vertex_input_state);
   mgpuColorBlendStateDestroy(m_mgpu_color_blend_state);
   mgpuInputAssemblyStateDestroy(m_mgpu_input_assembly_state);
@@ -300,6 +419,12 @@ MGPUHardwareRenderer::~MGPUHardwareRenderer() {
   mgpuShaderProgramDestroy(m_mgpu_shader_program);
   mgpuShaderModuleDestroy(m_mgpu_frag_shader);
   mgpuShaderModuleDestroy(m_mgpu_vert_shader);
+  mgpuResourceSetDestroy(m_mgpu_resource_set);
+  mgpuResourceSetLayoutDestroy(m_mgpu_resource_set_layout);
+  mgpuSamplerDestroy(m_mgpu_test_sampler);
+  mgpuTextureViewDestroy(m_mgpu_test_texture_view);
+  mgpuTextureDestroy(m_mgpu_test_texture);
+  mgpuBufferDestroy(m_mgpu_test_ubo);
   mgpuBufferDestroy(m_mgpu_vbo);
   for(MGPUTexture texture : m_mgpu_swap_chain_depth_textures) {
     mgpuTextureDestroy(texture);
@@ -350,7 +475,33 @@ void MGPUHardwareRenderer::Render(const Viewport& viewport, std::span<const Poly
       }
     }
 
-    mgpuQueueBufferUpload(m_mgpu_queue, m_mgpu_vbo, m_vbo_data.Data(), m_vbo_data.Size() * sizeof(BufferVertex), 0u);
+    MGPU_CHECK(mgpuQueueBufferUpload(m_mgpu_queue, m_mgpu_vbo, 0u, m_vbo_data.Size() * sizeof(BufferVertex), m_vbo_data.Data()));
+  }
+
+  static bool first_frame = true;
+
+  if(first_frame) {
+    const f32 uniform_color[4]{1.0, 1.0, 0.0, 1.0};
+    MGPU_CHECK(mgpuQueueBufferUpload(m_mgpu_queue, m_mgpu_test_ubo, 0u, sizeof(uniform_color), uniform_color));
+
+    u32 texture_data[32][32];
+    for(int y = 0; y < 32; y++) {
+      for(int x = 0; x < 32; x++) {
+        texture_data[y][x] = (x ^ y) & 4 ? 0xFF0000FF : 0xFFFFFFFF;
+      }
+    }
+
+    // TODO(fleroviux): implement short hands for common cases...
+    const MGPUTextureUploadRegion region{
+      .offset = {.x = 0u, .y = 0u, .z = 0u},
+      .extent = {.width = 32u, .height = 32u, .depth = 1u},
+      .mip_level = 0u,
+      .base_array_layer = 0u,
+      .array_layer_count = 1u
+    };
+    MGPU_CHECK(mgpuQueueTextureUpload(m_mgpu_queue, m_mgpu_test_texture, &region, texture_data));
+
+    first_frame = false;
   }
 
   const MGPURenderPassColorAttachment render_pass_color_attachments[1] {
@@ -381,7 +532,9 @@ void MGPUHardwareRenderer::Render(const Viewport& viewport, std::span<const Poly
   mgpuCommandListCmdUseInputAssemblyState(m_mgpu_cmd_list, m_mgpu_input_assembly_state);
   mgpuCommandListCmdUseColorBlendState(m_mgpu_cmd_list, m_mgpu_color_blend_state);
   mgpuCommandListCmdUseVertexInputState(m_mgpu_cmd_list, m_mgpu_vertex_input_state);
+  mgpuCommandListCmdUseDepthStencilState(m_mgpu_cmd_list, m_mgpu_depth_stencil_state);
   mgpuCommandListCmdBindVertexBuffer(m_mgpu_cmd_list, 0u, m_mgpu_vbo, 0u);
+  mgpuCommandListCmdBindResourceSet(m_mgpu_cmd_list, 0u, m_mgpu_resource_set);
   mgpuCommandListCmdDraw(m_mgpu_cmd_list, m_vbo_data.Size(), 1u, 0u, 0u);
   mgpuCommandListCmdEndRenderPass(m_mgpu_cmd_list);
 

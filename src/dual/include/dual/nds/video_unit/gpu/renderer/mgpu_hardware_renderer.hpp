@@ -83,6 +83,12 @@ class MGPUHardwareRenderer final : public RendererBase {
     std::vector<MGPUTextureView> m_mgpu_swap_chain_depth_texture_views{};
 
     MGPUBuffer m_mgpu_vbo{};
+    MGPUBuffer m_mgpu_test_ubo{};
+    MGPUTexture m_mgpu_test_texture{};
+    MGPUTextureView m_mgpu_test_texture_view{};
+    MGPUSampler m_mgpu_test_sampler{};
+    MGPUResourceSetLayout m_mgpu_resource_set_layout{};
+    MGPUResourceSet m_mgpu_resource_set{};
     MGPUShaderModule m_mgpu_vert_shader{};
     MGPUShaderModule m_mgpu_frag_shader{};
     MGPUShaderProgram m_mgpu_shader_program{};
@@ -90,6 +96,7 @@ class MGPUHardwareRenderer final : public RendererBase {
     MGPUInputAssemblyState m_mgpu_input_assembly_state{};
     MGPUColorBlendState m_mgpu_color_blend_state{};
     MGPUVertexInputState m_mgpu_vertex_input_state{};
+    MGPUDepthStencilState m_mgpu_depth_stencil_state{};
     MGPUCommandList m_mgpu_cmd_list{};
     MGPUQueue m_mgpu_queue{};
 
