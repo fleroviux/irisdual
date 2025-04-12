@@ -12,7 +12,5 @@ layout(set = 0, binding = 0) uniform Uniforms {
 layout(set = 0, binding = 1) uniform sampler2D u_test_texture;
 
 void main() {
-    //frag_color = vec4(v_color * u_color_multiply, 1.0);
-    //frag_color = vec4(v_uv, 0.0, 1.0);
-    frag_color = texture(u_test_texture, v_uv) * vec4(v_color, 1.0);
+    frag_color = texture(u_test_texture, v_uv / vec2(textureSize(u_test_texture, 0))) * vec4(v_color, 1.0);
 }

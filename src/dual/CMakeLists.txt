@@ -28,6 +28,7 @@ set(SOURCES
   src/nds/video_unit/gpu/command_processor/geometry.cpp
   src/nds/video_unit/gpu/command_processor/matrix.cpp
   src/nds/video_unit/gpu/renderer/mgpu_hardware/mgpu_hardware_renderer.cpp
+  src/nds/video_unit/gpu/renderer/mgpu_hardware/mgpu_texture_cache.cpp
   src/nds/video_unit/gpu/renderer/software/edge_marking.cpp
   src/nds/video_unit/gpu/renderer/software/fog.cpp
   src/nds/video_unit/gpu/renderer/software/rasterizer.cpp
@@ -89,6 +90,7 @@ set(HEADERS_PUBLIC
   include/dual/nds/video_unit/gpu/renderer/renderer_base.hpp
   include/dual/nds/video_unit/gpu/renderer/software_renderer.hpp
   include/dual/nds/video_unit/gpu/renderer/mgpu_hardware_renderer.hpp
+  include/dual/nds/video_unit/gpu/renderer/mgpu_texture_cache.hpp
   include/dual/nds/video_unit/gpu/command_processor.hpp
   include/dual/nds/video_unit/gpu/geometry_engine.hpp
   include/dual/nds/video_unit/gpu/gpu.hpp

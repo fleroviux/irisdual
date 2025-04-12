@@ -3,9 +3,11 @@
 
 #include <atom/float.hpp>
 #include <atom/vector_n.hpp>
+#include <dual/nds/video_unit/gpu/renderer/mgpu_texture_cache.hpp>
 #include <dual/nds/video_unit/gpu/renderer/renderer_base.hpp>
 #include <dual/nds/vram/region.hpp>
 #include <mgpu/mgpu.h>
+#include <memory>
 #include <SDL.h>
 #include <vector>
 
@@ -69,8 +71,6 @@ class MGPUHardwareRenderer final : public RendererBase {
     } __attribute__((packed));
 
     IO& m_io;
-    const Region<4, 131072>& m_vram_texture;
-    const Region<8>& m_vram_palette;
 
     SDL_Window* m_sdl_window{};
     MGPUInstance m_mgpu_instance{};
@@ -84,11 +84,8 @@ class MGPUHardwareRenderer final : public RendererBase {
 
     MGPUBuffer m_mgpu_vbo{};
     MGPUBuffer m_mgpu_test_ubo{};
-    MGPUTexture m_mgpu_test_texture{};
-    MGPUTextureView m_mgpu_test_texture_view{};
-    MGPUSampler m_mgpu_test_sampler{};
+    MGPUSampler m_mgpu_nearest_sampler{};
     MGPUResourceSetLayout m_mgpu_resource_set_layout{};
-    MGPUResourceSet m_mgpu_resource_set{};
     MGPUShaderModule m_mgpu_vert_shader{};
     MGPUShaderModule m_mgpu_frag_shader{};
     MGPUShaderProgram m_mgpu_shader_program{};
@@ -99,6 +96,8 @@ class MGPUHardwareRenderer final : public RendererBase {
     MGPUDepthStencilState m_mgpu_depth_stencil_state{};
     MGPUCommandList m_mgpu_cmd_list{};
     MGPUQueue m_mgpu_queue{};
+
+    std::unique_ptr<MGPUTextureCache> m_texture_cache{};
 
     atom::Vector_N<BufferVertex, k_total_vertices> m_vbo_data{};
 };
