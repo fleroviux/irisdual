@@ -90,8 +90,6 @@ class MGPUHardwareRenderer final : public RendererBase {
     MGPUShaderModule m_mgpu_frag_shader{};
     MGPUShaderProgram m_mgpu_shader_program{};
     MGPURasterizerState m_mgpu_rasterizer_state{};
-    MGPUInputAssemblyState m_mgpu_input_assembly_state{};
-    MGPUColorBlendState m_mgpu_color_blend_state{};
     MGPUVertexInputState m_mgpu_vertex_input_state{};
     MGPUDepthStencilState m_mgpu_depth_stencil_state{};
     MGPUCommandList m_mgpu_cmd_list{};

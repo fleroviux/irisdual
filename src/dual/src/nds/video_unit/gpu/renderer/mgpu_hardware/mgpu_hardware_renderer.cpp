@@ -281,30 +281,6 @@ MGPUHardwareRenderer::MGPUHardwareRenderer(
   };
   MGPU_CHECK(mgpuDeviceCreateRasterizerState(m_mgpu_device, &rasterizer_state_create_info, &m_mgpu_rasterizer_state));
 
-  const MGPUInputAssemblyStateCreateInfo input_assembly_state_create_info{
-    .topology = MGPU_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
-    .primitive_restart_enable = false
-  };
-  MGPU_CHECK(mgpuDeviceCreateInputAssemblyState(m_mgpu_device, &input_assembly_state_create_info, &m_mgpu_input_assembly_state));
-
-  const MGPUColorBlendAttachmentState color_blend_attachment_states[1]{
-    {
-      .blend_enable = false,
-      .src_color_blend_factor = MGPU_BLEND_FACTOR_SRC_ALPHA,
-      .dst_color_blend_factor = MGPU_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
-      .color_blend_op = MGPU_BLEND_OP_ADD,
-      .src_alpha_blend_factor = MGPU_BLEND_FACTOR_ONE,
-      .dst_alpha_blend_factor = MGPU_BLEND_FACTOR_ONE,
-      .alpha_blend_op = MGPU_BLEND_OP_MAX,
-      .color_write_mask = 0b1111
-    }
-  };
-  const MGPUColorBlendStateCreateInfo color_blend_state_create_info{
-    .attachment_count = sizeof(color_blend_attachment_states) / sizeof(MGPUColorBlendAttachmentState),
-    .attachments = color_blend_attachment_states
-  };
-  MGPU_CHECK(mgpuDeviceCreateColorBlendState(m_mgpu_device, &color_blend_state_create_info, &m_mgpu_color_blend_state));
-
   const MGPUVertexBinding vertex_input_binding{
     .binding = 0u,
     .stride = sizeof(BufferVertex),
@@ -361,8 +337,6 @@ MGPUHardwareRenderer::~MGPUHardwareRenderer() {
   mgpuCommandListDestroy(m_mgpu_cmd_list);
   mgpuDepthStencilStateDestroy(m_mgpu_depth_stencil_state);
   mgpuVertexInputStateDestroy(m_mgpu_vertex_input_state);
-  mgpuColorBlendStateDestroy(m_mgpu_color_blend_state);
-  mgpuInputAssemblyStateDestroy(m_mgpu_input_assembly_state);
   mgpuRasterizerStateDestroy(m_mgpu_rasterizer_state);
   mgpuShaderProgramDestroy(m_mgpu_shader_program);
   mgpuShaderModuleDestroy(m_mgpu_frag_shader);
@@ -455,13 +429,11 @@ void MGPUHardwareRenderer::Render(const Viewport& viewport, std::span<const Poly
     .depth_stencil_attachment = &render_pass_depth_attachment
   };
   const auto mgpu_render_cmd_encoder = mgpuCommandListCmdBeginRenderPass(m_mgpu_cmd_list, &render_pass_info);
-  mgpuRenderCommandEncoderUseShaderProgram(mgpu_render_cmd_encoder, m_mgpu_shader_program);
-  mgpuRenderCommandEncoderUseRasterizerState(mgpu_render_cmd_encoder, m_mgpu_rasterizer_state);
-  mgpuRenderCommandEncoderUseInputAssemblyState(mgpu_render_cmd_encoder, m_mgpu_input_assembly_state);
-  mgpuRenderCommandEncoderUseColorBlendState(mgpu_render_cmd_encoder, m_mgpu_color_blend_state);
-  mgpuRenderCommandEncoderUseVertexInputState(mgpu_render_cmd_encoder, m_mgpu_vertex_input_state);
-  mgpuRenderCommandEncoderUseDepthStencilState(mgpu_render_cmd_encoder, m_mgpu_depth_stencil_state);
-  mgpuRenderCommandEncoderBindVertexBuffer(mgpu_render_cmd_encoder, 0u, m_mgpu_vbo, 0u);
+  mgpuRenderCommandEncoderCmdUseShaderProgram(mgpu_render_cmd_encoder, m_mgpu_shader_program);
+  mgpuRenderCommandEncoderCmdUseRasterizerState(mgpu_render_cmd_encoder, m_mgpu_rasterizer_state);
+  mgpuRenderCommandEncoderCmdUseVertexInputState(mgpu_render_cmd_encoder, m_mgpu_vertex_input_state);
+  mgpuRenderCommandEncoderCmdUseDepthStencilState(mgpu_render_cmd_encoder, m_mgpu_depth_stencil_state);
+  mgpuRenderCommandEncoderCmdBindVertexBuffer(mgpu_render_cmd_encoder, 0u, m_mgpu_vbo, 0u);
   {
     // TODO(fleroviux): reimplement proper batching code
     int next_batch_start = 0;
@@ -504,8 +476,8 @@ void MGPUHardwareRenderer::Render(const Viewport& viewport, std::span<const Poly
         MGPUResourceSet mgpu_resource_set{};
         MGPU_CHECK(mgpuDeviceCreateResourceSet(m_mgpu_device, &rset_create_info, &mgpu_resource_set));
 
-        mgpuRenderCommandEncoderBindResourceSet(mgpu_render_cmd_encoder, 0u, mgpu_resource_set);
-        mgpuRenderCommandEncoderDraw(mgpu_render_cmd_encoder, vertex_count, 1u, current_batch_vertex_start, 0u);
+        mgpuRenderCommandEncoderCmdBindResourceSet(mgpu_render_cmd_encoder, 0u, mgpu_resource_set);
+        mgpuRenderCommandEncoderCmdDraw(mgpu_render_cmd_encoder, vertex_count, 1u, current_batch_vertex_start, 0u);
 
         temp_resource_sets.push_back(mgpu_resource_set);
       }
