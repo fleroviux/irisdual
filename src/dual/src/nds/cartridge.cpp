@@ -292,10 +292,6 @@ namespace dual::nds {
             ATOM_PANIC("slot1: command 0xB7: size greater than 0x200 is untested.");
           }
 
-          if((address & 0x1FF) > 0) {
-            ATOM_PANIC("slot1: command 0xB7: address unaligned to 0x200 is untested.");
-          }
-
           m_transfer.data_count = std::min(0x80, m_transfer.count);
 
           const u32 byte_len = m_transfer.data_count * sizeof(u32);
