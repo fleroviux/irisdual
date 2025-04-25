@@ -21,11 +21,14 @@ namespace dual::nds::arm9 {
 
   void CP15::DirectBoot() {
     // Reset control register (enable DTCM and ITCM, exception base = 0xFFFF0000)
-    MCR(0, 1, 0, 0, 0x0005707D);
+    MCR(0, 1, 0, 0, 0x0005707Du);
 
     // Reset DTCM and ITCM configuration
-    MCR(0, 9, 1, 0, 0x0300000A);
-    MCR(0, 9, 1, 1, 0x00000020);
+    MCR(0, 9, 1, 0, 0x0300000Au);
+    MCR(0, 9, 1, 1, 0x00000020u);
+
+    // Reset Process ID register
+    MCR(0, 13, 0, 1, 0x00000000u);
   }
 
   u32 CP15::MRC(int opc1, int cn, int cm, int opc2) {
@@ -44,6 +47,10 @@ namespace dual::nds::arm9 {
       }
       case ID(0, 9, 1, 1): { // ITCM region register
         return m_itcm_region;
+      }
+      case ID(0, 13, 0, 1):
+      case ID(0, 13, 1, 1): { // Trace Process ID
+        return m_trace_process_id;
       }
       default: {
         ATOM_WARN("arm9: CP15: unhandled MRC #{}, C{}, C{}, #{}", opc1, cn, cm, opc2);
@@ -137,6 +144,11 @@ namespace dual::nds::arm9 {
         m_itcm_region = value & ~1u;
 
         ATOM_DEBUG("arm9: CP15: ITCM mapped @ 0x{:08X} - 0x{:08X}", base_address, high_address);
+        break;
+      }
+      case ID(0, 13, 0, 1):
+      case ID(0, 13, 1, 1): { // Trace Process ID
+        m_trace_process_id = value;
         break;
       }
       default: {

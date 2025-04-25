@@ -42,6 +42,7 @@ namespace dual::nds::arm9 {
 
       u32 m_dtcm_region = 0u;
       u32 m_itcm_region = 0u;
+      u32 m_trace_process_id = 0u;
   };
 
 } // namespace dual::nds::arm9
