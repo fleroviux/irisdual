@@ -1,1 +1,2 @@
 - [ ] Flickering bug during Pokemon trade (e.g. Onyx in Violet city) in Pokemon Heart Gold / Soul Silver
+- [ ] JIT: add as many cycles to the cycle counter as have actually elapsed
