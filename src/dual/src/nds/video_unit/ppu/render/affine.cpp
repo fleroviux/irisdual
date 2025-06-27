@@ -138,7 +138,7 @@ namespace dual::nds {
         if(encoder & (1 << 10)) tile_x = 7 - tile_x;
         if(encoder & (1 << 11)) tile_y = 7 - tile_y;
 
-        buffer[line_x] = DecodeTilePixel8BPP_BG(tile_base + number * 64, true, palette, 2 + id, tile_x, tile_y);
+        buffer[line_x] = DecodeTilePixel8BPP_BG(tile_base + number * 64, mmio.dispcnt.enable_extpal_bg, palette, 2 + id, tile_x, tile_y);
       });
     }
   }

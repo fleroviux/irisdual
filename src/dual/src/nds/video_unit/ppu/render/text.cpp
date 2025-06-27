@@ -75,7 +75,7 @@ namespace dual::nds {
           if(!bgcnt.full_palette) {
             DecodeTileLine4BPP(tile, tile_base, palette, number, _tile_y, flip_x);
           } else {
-            DecodeTileLine8BPP(tile, tile_base, palette, expal_slot, number, _tile_y, flip_x);
+            DecodeTileLine8BPP(tile, tile_base, mmio.dispcnt.enable_extpal_bg,  palette, expal_slot, number, _tile_y, flip_x);
           }
 
           last_encoder = encoder;

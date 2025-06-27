@@ -165,7 +165,7 @@ namespace dual::nds {
 
           tile_num += block_x * 2;
 
-          pixel = DecodeTilePixel8BPP_OBJ(tile_num * 32, palette, tile_x, tile_y);
+          pixel = DecodeTilePixel8BPP_OBJ(tile_num * 32, mmio.dispcnt.enable_extpal_obj, palette, tile_x, tile_y);
         } else {
           if(mmio.dispcnt.tile_obj_mapping == DisplayControl::Mapping::OneDimensional) {
             tile_num = (number << mmio.dispcnt.tile_obj_boundary) + block_y * (width / 8);

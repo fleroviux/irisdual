@@ -205,7 +205,7 @@ namespace dual::nds {
         }
       }
 
-      void DecodeTileLine8BPP(u16* buffer, u32 base, uint palette, uint extpal_slot, uint number, uint y, bool flip) {
+      void DecodeTileLine8BPP(u16* buffer, u32 base, bool enable_extpal, uint palette, uint extpal_slot, uint number, uint y, bool flip) {
         int xor_x = flip ? 7 : 0;
         u64 data  = atom::read<u64>(m_render_vram_bg, base + (number << 6 | y << 3));
 
@@ -214,7 +214,7 @@ namespace dual::nds {
 
           if(index == 0) {
             buffer[x ^ xor_x] = k_color_transparent;
-          } else if(m_mmio.dispcnt.enable_extpal_bg) {
+          } else if(enable_extpal) {
             buffer[x ^ xor_x] = atom::read<u16>(m_render_extpal_bg, extpal_slot << 13 | palette << 9 | index << 1);
           } else {
             buffer[x ^ xor_x] = ReadPalette(0, index);
@@ -236,29 +236,25 @@ namespace dual::nds {
       }
 
       u16 DecodeTilePixel8BPP_BG(u32 address, bool enable_extpal, uint palette, uint extpal_slot, int x, int y) {
-        u8 index = atom::read<u8>(m_render_vram_bg, address + (y << 3) + x);
-
+        const u8 index = atom::read<u8>(m_render_vram_bg, address + (y << 3) + x);
         if(index == 0) {
           return k_color_transparent;
-        } else if(enable_extpal && m_mmio.dispcnt.enable_extpal_bg) {
-          return atom::read<u16>(m_render_extpal_bg, extpal_slot << 13 | palette << 9 | index << 1);
-        } else {
-          return ReadPalette(0, index);
         }
+        if(enable_extpal) {
+          return atom::read<u16>(m_render_extpal_bg, extpal_slot << 13 | palette << 9 | index << 1);
+        }
+        return ReadPalette(0, index);
       }
 
-      u16 DecodeTilePixel8BPP_OBJ(u32 address, uint palette, int x, int y) {
-        u8 index = atom::read<u8>(m_render_vram_obj, address + (y << 3) + x);
-
+      u16 DecodeTilePixel8BPP_OBJ(u32 address, bool enable_extpal, uint palette, int x, int y) {
+        const u8 index = atom::read<u8>(m_render_vram_obj, address + (y << 3) + x);
         if(index == 0) {
           return k_color_transparent;
-        } else {
-          if(m_mmio.dispcnt.enable_extpal_obj) {
-            return atom::read<u16>(m_render_extpal_obj, (palette << 9 | index << 1) & 0x1FFF);
-          } else {
-            return ReadPalette(16, index);
-          }
         }
+        if(enable_extpal) {
+          return atom::read<u16>(m_render_extpal_obj, (palette << 9 | index << 1) & 0x1FFF);
+        }
+        return ReadPalette(16, index);
       }
 
       static u32 ConvertColor(u16 color) {
