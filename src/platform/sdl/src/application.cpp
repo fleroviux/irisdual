@@ -2,8 +2,7 @@
 #include <algorithm>
 #include <atom/logger/logger.hpp>
 #include <atom/arguments.hpp>
-#include <dual/nds/backup/eeprom512b.hpp>
-#include <dual/nds/backup/flash.hpp>
+#include <dual/nds/backup/automatic.hpp>
 #include <fstream>
 
 #include "application.hpp"
@@ -139,9 +138,7 @@ void Application::LoadROM(const char* path) {
 
   const auto save_path = std::filesystem::path{path}.replace_extension("sav").string();
 
-  // TODO: decide the correct save type
-  std::shared_ptr<dual::nds::arm7::SPI::Device> backup = std::make_shared<dual::nds::FLASH>(save_path, dual::nds::FLASH::Size::_512K);
-
+  const auto backup = std::make_shared<dual::nds::AutomaticBackupDevice>(save_path);
   m_nds->LoadROM(std::make_shared<dual::nds::MemoryROM>(data, size), backup);
   m_nds->DirectBoot();
 }

@@ -2,7 +2,9 @@
 #pragma once
 
 #include <atom/bit.hpp>
+#include <dual/arm/memory.hpp>
 #include <dual/common/fifo.hpp>
+#include <dual/nds/cartridge.hpp>
 #include <dual/nds/enums.hpp>
 #include <dual/nds/irq.hpp>
 
@@ -11,7 +13,7 @@ namespace dual::nds {
   // Inter-Process Communication hardware for ARM9 and ARM7 synchronization and message passing.
   class IPC {
     public:
-      IPC(IRQ& irq9, IRQ& irq7);
+      IPC(IRQ& irq9, IRQ& irq7, dual::arm::Memory& bus7, Cartridge& cartridge);
 
       void Reset();
 
@@ -49,6 +51,10 @@ namespace dual::nds {
       } m_fifo[2];
 
       IRQ* m_irq[2]{};
+      dual::arm::Memory& m_bus7;
+      Cartridge& m_cartridge;
+
+      bool m_got_first_fs_command{};
   };
 
 } // namespace dual::nds

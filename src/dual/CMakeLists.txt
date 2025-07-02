@@ -21,6 +21,7 @@ set(SOURCES
   src/nds/arm9/io.cpp
   src/nds/arm9/math.cpp
   src/nds/arm9/memory.cpp
+  src/nds/backup/automatic.cpp
   src/nds/backup/eeprom.cpp
   src/nds/backup/eeprom512b.cpp
   src/nds/backup/flash.cpp
@@ -80,6 +81,7 @@ set(HEADERS_PUBLIC
   include/dual/nds/arm9/dma.hpp
   include/dual/nds/arm9/math.hpp
   include/dual/nds/arm9/memory.hpp
+  include/dual/nds/backup/automatic.hpp
   include/dual/nds/backup/eeprom.hpp
   include/dual/nds/backup/eeprom512b.hpp
   include/dual/nds/backup/flash.hpp

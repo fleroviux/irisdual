@@ -1,10 +1,18 @@
 
 #include <atom/logger/logger.hpp>
+#include <atom/literal.hpp>
 #include <dual/nds/ipc.hpp>
+#include <dual/nds/backup/eeprom.hpp>
+#include <dual/nds/backup/eeprom512b.hpp>
+#include <dual/nds/backup/flash.hpp>
+
+using namespace atom::literals;
 
 namespace dual::nds {
 
-  IPC::IPC(IRQ& irq9, IRQ& irq7) {
+  IPC::IPC(IRQ& irq9, IRQ& irq7, dual::arm::Memory& bus7, Cartridge& cartridge)
+      : m_bus7{bus7}
+      , m_cartridge{cartridge} {
     m_irq[(int)CPU::ARM9] = &irq9;
     m_irq[(int)CPU::ARM7] = &irq7;
   }
@@ -12,6 +20,8 @@ namespace dual::nds {
   void IPC::Reset() {
     for(auto& sync : m_sync) sync = {};
     for(auto& fifo : m_fifo) fifo = {};
+
+    m_got_first_fs_command = false;
   }
 
   u32 IPC::Read_SYNC(CPU cpu) {
@@ -120,6 +130,30 @@ namespace dual::nds {
     }
 
     fifo_tx.send.Write(value);
+
+    // TODO: only do all of this this if we don't have a backup already
+    if(cpu == CPU::ARM9) {
+      const auto tag = value & 31u;
+
+      if(tag == 0xBu) {
+        const auto data = value >> 6;
+        if(m_got_first_fs_command) {
+          constexpr const char* save_names[] { "None", "EEPROM", "FLASH", "FRAM" };
+
+          const u32 save_info = m_bus7.ReadWord(data + 4u, dual::arm::Memory::Bus::Data);
+          const u32 save_type = save_info & 3u;
+          const u32 save_size = 1 << (u8)(save_info >> 8);
+
+          ATOM_INFO("{}: IPC: got FS save hint: type={} size={}\n", cpu, save_names[save_type], save_size);
+
+          m_cartridge.SetBackupDeviceHint((arm7::SPI::BackupDevice::Type)save_type, save_size);
+
+          m_got_first_fs_command = false;
+        } else if(data == 0) {
+          m_got_first_fs_command = true;
+        }
+      }
+    }
   }
 
 } // namespace dual::nds

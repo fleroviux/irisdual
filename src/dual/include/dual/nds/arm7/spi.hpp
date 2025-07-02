@@ -25,6 +25,17 @@ namespace dual::nds::arm7 {
 
         virtual u8 Transfer(u8 data) = 0;
       };
+      
+      struct BackupDevice : Device {
+        enum class Type {
+          None = 0,
+          EEPROM = 1,
+          FLASH = 2,
+          FRAM = 3
+        };
+
+        virtual void SetDeviceHint(Type type, size_t byte_size) {}
+      };
 
       explicit SPI(IRQ& irq);
 

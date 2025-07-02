@@ -7,7 +7,7 @@
 namespace dual::nds {
 
   // FLASH memory emulation
-  class FLASH final : public arm7::SPI::Device {
+  class FLASH final : public arm7::SPI::BackupDevice {
     public:
       enum class Size {
         _256K = 0,

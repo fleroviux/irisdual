@@ -122,8 +122,9 @@ namespace dual::nds {
     std::copy(data.begin(), data.end(), m_memory.arm7.bios.begin());
   }
 
-  void NDS::LoadROM(std::shared_ptr<ROM> rom, std::shared_ptr<dual::nds::arm7::SPI::Device> backup) {
-    m_cartridge.SetROM(rom, backup);
+  void NDS::LoadROM(std::shared_ptr<ROM> rom, std::shared_ptr<dual::nds::arm7::SPI::BackupDevice> backup) {
+    m_cartridge.SetROM(rom);
+    m_cartridge.SetBackup(std::move(backup));
     m_rom = std::move(rom);
   }
 

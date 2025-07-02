@@ -33,7 +33,7 @@ namespace dual::nds {
     m_data_mode = DataMode::MainDataLoad;
   }
 
-  void Cartridge::SetROM(std::shared_ptr<ROM> rom, std::shared_ptr<arm7::SPI::Device> backup) {
+  void Cartridge::SetROM(std::shared_ptr<ROM> rom) {
     u32 game_id_code;
     rom->Read((u8*)&game_id_code, 12, sizeof(u32));
     InitKeyCode(game_id_code);
@@ -51,7 +51,14 @@ namespace dual::nds {
     }
 
     m_rom = std::move(rom);
+  }
+
+  void Cartridge::SetBackup(std::shared_ptr<arm7::SPI::BackupDevice> backup) {
     m_backup = std::move(backup);
+  }
+
+  void Cartridge::SetBackupDeviceHint(arm7::SPI::BackupDevice::Type type, size_t byte_size) {
+    m_backup->SetDeviceHint(type, byte_size);
   }
 
   auto Cartridge::Read_AUXSPICNT() -> u16 {

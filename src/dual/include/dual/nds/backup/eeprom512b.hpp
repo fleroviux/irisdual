@@ -7,7 +7,7 @@
 namespace dual::nds {
 
   // EEPROM 512B memory emulation
-  class EEPROM512B final : public arm7::SPI::Device {
+  class EEPROM512B final : public arm7::SPI::BackupDevice {
     public:
       explicit EEPROM512B(const std::string& save_path);
 

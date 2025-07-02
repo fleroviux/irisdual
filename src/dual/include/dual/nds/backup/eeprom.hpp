@@ -7,7 +7,7 @@
 namespace dual::nds {
 
   // EEPROM (and FRAM) memory emulation
-  class EEPROM final : public arm7::SPI::Device {
+  class EEPROM final : public arm7::SPI::BackupDevice {
     public:
       enum class Size {
         _8K,

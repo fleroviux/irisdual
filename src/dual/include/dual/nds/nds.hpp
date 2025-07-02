@@ -36,7 +36,7 @@ namespace dual::nds {
       void Step(int cycles_to_run);
       void LoadBootROM9(std::span<u8, 0x8000> data);
       void LoadBootROM7(std::span<u8, 0x4000> data);
-      void LoadROM(std::shared_ptr<ROM> rom, std::shared_ptr<dual::nds::arm7::SPI::Device> backup);
+      void LoadROM(std::shared_ptr<ROM> rom, std::shared_ptr<dual::nds::arm7::SPI::BackupDevice> backup);
       void DirectBoot();
 
       VideoUnit& GetVideoUnit() {
@@ -121,7 +121,7 @@ namespace dual::nds {
             , apu{scheduler, bus} {}
       } m_arm7{m_scheduler, m_memory, m_ipc, m_video_unit, m_cartridge, m_key_input};
 
-      IPC m_ipc{m_arm9.irq, m_arm7.irq};
+      IPC m_ipc{m_arm9.irq, m_arm7.irq, m_arm7.bus, m_cartridge};
 
       std::shared_ptr<ROM> m_rom;
 
