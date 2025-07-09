@@ -83,8 +83,8 @@ namespace dual::nds {
         const size_t index = (address >> 2) & 3u;
 
         m_io.edge_color[index] = (value & mask) | (m_io.edge_color[index] & ~mask);
-
-        m_renderer->UpdateEdgeColor(index, std::span{&m_io.edge_color[index], 2u});
+        
+        m_renderer->UpdateEdgeColor(index, std::span{&m_io.edge_color[index], 1u});
       }
 
       void Write_ALPHA_TEST_REF(u32 value, u32 mask) {
