@@ -115,8 +115,7 @@ void EmulatorThread::ThreadMain() {
     ATOM_PANIC("An audio driver is required to synchronize to audio, but no audio driver is present.");
   }
 
-  // We aim to keep at least four and at most eight audio buffers in the queue.
-  const uint full_buffer_size = audio_driver->GetBufferSize() * 8;
+  const uint full_buffer_size = audio_driver->GetBufferSize();
   const uint half_buffer_size = full_buffer_size >> 1;
 
   while(m_running) {
