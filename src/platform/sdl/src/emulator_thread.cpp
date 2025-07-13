@@ -116,24 +116,17 @@ void EmulatorThread::ThreadMain() {
   }
 
   const uint full_buffer_size = audio_driver->GetBufferSize();
-  const uint half_buffer_size = full_buffer_size >> 1;
 
   while(m_running) {
     // @todo: figure out how frequently we want to run this, especially when unthrottled.
     ProcessMessages();
 
     if(!m_fast_forward) {
-      uint current_buffer_size = audio_driver->GetNumberOfQueuedSamples();
+      audio_driver->WaitBufferHalfEmpty();
 
+      uint current_buffer_size = audio_driver->GetNumberOfQueuedSamples();
       if(current_buffer_size == 0) {
         fmt::print("Uh oh! Bad! Audio not synced anymore! Fix me!!\n");
-      }
-
-      // Sleep until the queue is less than half full
-      while(current_buffer_size > half_buffer_size) {
-        std::this_thread::sleep_for(1ms);
-
-        current_buffer_size = audio_driver->GetNumberOfQueuedSamples();
       }
 
       // Run the emulator for as many cycles as is needed to fully fill the queue.

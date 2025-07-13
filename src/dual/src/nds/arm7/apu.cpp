@@ -24,6 +24,12 @@ namespace dual::nds::arm7 {
 
   APU::APU(Scheduler& scheduler, arm::Memory& bus) : m_scheduler{scheduler}, m_bus{bus} {}
 
+  APU::~APU() {
+    if(m_audio_driver) {
+      m_audio_driver->Close();
+    }
+  }
+
   void APU::Reset() {
     m_soundxcnt.fill({});
     m_soundxsad.fill(0u);
@@ -54,7 +60,7 @@ namespace dual::nds::arm7 {
       m_audio_driver->Close();
     }
     m_audio_driver = std::move(audio_driver);
-    m_audio_driver->Open(nullptr, nullptr, 32768u, 1024u);
+    m_audio_driver->Open(32768u, 1024u);
   }
 
   bool APU::GetEnableOutput() const {
