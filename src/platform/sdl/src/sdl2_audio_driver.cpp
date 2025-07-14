@@ -31,18 +31,6 @@ bool SDL2AudioDriver::Open(uint sample_rate, uint buffer_size) {
     return false;
   }
 
-  // TODO: can this ever trigger?
-  if(m_have.format != want.format) {
-    ATOM_ERROR("SDL_AudioDevice: S16 sample format unavailable.");
-    return false;
-  }
-
-  // TODO: can this ever trigger?
-  if(m_have.channels != want.channels) {
-    ATOM_ERROR("SDL_AudioDevice: Stereo output unavailable.");
-    return false;
-  }
-
   m_audio_buffer.resize(m_have.samples * 2u * k_channel_count);
   m_rd_position = 0u;
   m_wr_position = 0u;
