@@ -1,7 +1,6 @@
 
 #include <atom/logger/logger.hpp>
 #include <atom/panic.hpp>
-#include <thread>
 
 #include "sdl2_audio_driver.hpp"
 
@@ -83,14 +82,7 @@ uint SDL2AudioDriver::GetNumberOfQueuedSamples() const {
 }
 
 void SDL2AudioDriver::WaitBufferHalfEmpty() const {
-  using namespace std::chrono_literals;
-
-  const size_t half_buffer_size = GetBufferSize() / 2u;
-
-  // TODO(fleroviux): use a binary semaphore to signal the "less than half full" condition?
-  while(m_current_buffer_size > half_buffer_size) {
-    std::this_thread::sleep_for(1ms);
-  }
+  m_buffer_half_empty_semaphore.acquire();
 }
 
 void SDL2AudioDriver_AudioCallback(SDL2AudioDriver* self, i16* stream, int length) {
@@ -105,6 +97,9 @@ void SDL2AudioDriver_AudioCallback(SDL2AudioDriver* self, i16* stream, int lengt
         self->m_rd_position = 0u;
       }
       self->m_current_buffer_size--;
+      if(self->m_current_buffer_size * 2u <= self->GetBufferSize()) {
+        self->m_buffer_half_empty_semaphore.release();
+      }
     } else {
       for(size_t channel = 0; channel < SDL2AudioDriver::k_channel_count; channel++) {
         *stream++ = 0u;

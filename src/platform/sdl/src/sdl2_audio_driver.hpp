@@ -2,6 +2,7 @@
 #include <atom/integer.hpp>
 #include <atomic>
 #include <dual/audio_driver.hpp>
+#include <semaphore>
 #include <vector>
 
 #include <SDL.h>
@@ -25,6 +26,7 @@ class SDL2AudioDriver final : public dual::AudioDriverBase {
     size_t m_rd_position{};
     size_t m_wr_position{};
     std::atomic_size_t m_current_buffer_size{};
+    mutable std::binary_semaphore m_buffer_half_empty_semaphore{1u};
 
     friend void SDL2AudioDriver_AudioCallback(SDL2AudioDriver* audio_driver, i16* stream, int length);
 };
