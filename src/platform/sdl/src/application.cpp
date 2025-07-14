@@ -18,6 +18,9 @@ Application::Application() {
 Application::~Application() {
   for(auto& texture : m_textures) SDL_DestroyTexture(texture);
 
+  // Make sure we stop the emulator thread properly before destroying any SDL resources.
+  m_emu_thread.Stop();
+
   SDL_DestroyRenderer(m_renderer);
   SDL_DestroyWindow(m_window);
   SDL_Quit();

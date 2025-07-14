@@ -18,6 +18,7 @@ namespace dual::nds::arm7 {
   class APU {
     public:
       APU(Scheduler& scheduler, arm::Memory& bus);
+     ~APU();
 
       void Reset();
 

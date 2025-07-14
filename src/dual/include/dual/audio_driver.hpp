@@ -12,11 +12,12 @@ namespace dual {
 
       virtual ~AudioDriverBase() = default;
 
-      virtual bool Open(void* user_data, Callback callback, uint sample_rate, uint buffer_size) = 0;
+      virtual bool Open(uint sample_rate, uint buffer_size) = 0;
       virtual void Close() = 0;
       virtual uint GetBufferSize() const = 0;
       virtual void QueueSamples(std::span<i16> buffer) = 0;
       virtual uint GetNumberOfQueuedSamples() const = 0;
+      virtual void WaitBufferHalfEmpty() const = 0;
   };
 
 } // namespace dual
