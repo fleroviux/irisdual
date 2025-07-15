@@ -117,9 +117,8 @@ namespace dual::arm {
       }
 
       void Run(int cycles) override {
-        // @todo: better integration of the cycle counter with the JIT?
-        m_lunatic_cpu->Run(cycles);
-        m_cycle_counter.AddDeviceCycles(cycles);
+        const int actual_cycles = m_lunatic_cpu->Run(cycles);
+        m_cycle_counter.AddDeviceCycles(actual_cycles);
       }
 
     private:
