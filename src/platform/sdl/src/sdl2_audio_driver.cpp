@@ -74,7 +74,7 @@ void SDL2AudioDriver::WaitBufferHalfEmpty() const {
 }
 
 void SDL2AudioDriver_AudioCallback(SDL2AudioDriver* self, i16* stream, int length) {
-  const size_t sample_count = length / sizeof(i16) / 2;
+  const size_t sample_count = length / sizeof(i16) / SDL2AudioDriver::k_channel_count;
 
   for(int i = 0; i < sample_count; i++) {
     if(self->m_current_buffer_size > 0) {
