@@ -175,6 +175,9 @@ namespace dual::nds::arm9 {
       case REG(0x040001AC): return hw.cartridge.Read_CARDCMD() >> 32;
       case REG(0x04100010): return hw.cartridge.Read_CARDDATA();
 
+      // Memory Control
+      case REG(0x04000204): return hw.exmemcnt.ReadHalf();
+
       // IRQ
       case REG(0x04000208): return hw.irq.Read_IME();
       case REG(0x04000210): return hw.irq.Read_IE();
@@ -340,6 +343,9 @@ namespace dual::nds::arm9 {
       case REG(0x040001A4): hw.cartridge.Write_ROMCTRL(value, mask); break;
       case REG(0x040001A8): hw.cartridge.Write_CARDCMD((u64)value <<  0, (u64)mask <<  0); break;
       case REG(0x040001AC): hw.cartridge.Write_CARDCMD((u64)value << 32, (u64)mask << 32); break;
+
+      // Memory Control
+      case REG(0x04000204): hw.exmemcnt.WriteHalf(value, (u16)mask); break;
 
       // IRQ
       case REG(0x04000208): hw.irq.Write_IME(value, mask); break;

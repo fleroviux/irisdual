@@ -155,6 +155,9 @@ namespace dual::nds::arm7 {
         return value;
       }
 
+      // Memory Control
+      case REG(0x04000204): return hw.exmemcnt.ReadHalf();
+
       // IRQ
       case REG(0x04000208): return hw.irq.Read_IME();
       case REG(0x04000210): return hw.irq.Read_IE();

@@ -16,6 +16,7 @@
 #include <dual/nds/video_unit/video_unit.hpp>
 #include <dual/nds/arm9/dma.hpp>
 #include <dual/nds/cartridge.hpp>
+#include <dual/nds/exmemcnt.hpp>
 #include <dual/nds/ipc.hpp>
 #include <dual/nds/irq.hpp>
 #include <dual/nds/rom.hpp>
@@ -59,9 +60,10 @@ namespace dual::nds {
 
       VideoUnit m_video_unit{m_scheduler, m_memory, m_arm9.irq, m_arm7.irq, m_arm9.dma, m_arm7.dma};
 
-      Cartridge m_cartridge{m_scheduler, m_arm9.irq, m_arm7.irq, m_arm9.dma, m_arm7.dma, m_memory};
+      Cartridge m_cartridge{m_scheduler, m_arm9.irq, m_arm7.irq, m_arm9.dma, m_arm7.dma, m_memory, m_exmemcnt};
 
       u32 m_key_input{};
+      EXMEMCNT m_exmemcnt{};
 
       struct ARM9 {
         CycleCounter cycle_counter{1};
@@ -73,7 +75,7 @@ namespace dual::nds {
         arm9::DMA dma{bus, irq};
         arm9::Math math{};
 
-        ARM9(Scheduler& scheduler, SystemMemory& memory, IPC& ipc, VideoUnit& video_unit, Cartridge& cartridge, u32& key_input)
+        ARM9(Scheduler& scheduler, SystemMemory& memory, IPC& ipc, VideoUnit& video_unit, Cartridge& cartridge, u32& key_input, EXMEMCNT& exmemcnt)
             : bus{memory, {
                 irq,
                 timer,
@@ -84,10 +86,11 @@ namespace dual::nds {
                 math,
                 video_unit,
                 cartridge,
-                key_input
+                key_input,
+                exmemcnt
               }}
             , timer{scheduler, cycle_counter, irq} {}
-      } m_arm9{m_scheduler, m_memory, m_ipc, m_video_unit, m_cartridge, m_key_input};
+      } m_arm9{m_scheduler, m_memory, m_ipc, m_video_unit, m_cartridge, m_key_input, m_exmemcnt};
 
       struct ARM7 {
         CycleCounter cycle_counter{0};
@@ -101,7 +104,7 @@ namespace dual::nds {
         arm7::APU apu;
         arm7::WIFI wifi{};
 
-        ARM7(Scheduler& scheduler, SystemMemory& memory, IPC& ipc, VideoUnit& video_unit, Cartridge& cartridge, u32& key_input)
+        ARM7(Scheduler& scheduler, SystemMemory& memory, IPC& ipc, VideoUnit& video_unit, Cartridge& cartridge, u32& key_input, EXMEMCNT& exmemcnt)
             : bus{memory, {
                 irq,
                 timer,
@@ -115,11 +118,12 @@ namespace dual::nds {
                 rtc,
                 apu,
                 wifi,
-                key_input
+                key_input,
+                exmemcnt
               }}
             , timer{scheduler, cycle_counter, irq}
             , apu{scheduler, bus} {}
-      } m_arm7{m_scheduler, m_memory, m_ipc, m_video_unit, m_cartridge, m_key_input};
+      } m_arm7{m_scheduler, m_memory, m_ipc, m_video_unit, m_cartridge, m_key_input, m_exmemcnt};
 
       IPC m_ipc{m_arm9.irq, m_arm7.irq, m_arm7.bus, m_cartridge};
 

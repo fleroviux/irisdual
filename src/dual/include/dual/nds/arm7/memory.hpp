@@ -15,6 +15,7 @@
 #include <dual/nds/video_unit/video_unit.hpp>
 #include <dual/nds/vram/vram.hpp>
 #include <dual/nds/cartridge.hpp>
+#include <dual/nds/exmemcnt.hpp>
 #include <dual/nds/irq.hpp>
 #include <dual/nds/ipc.hpp>
 #include <dual/nds/swram.hpp>
@@ -39,6 +40,7 @@ namespace dual::nds::arm7 {
         APU& apu;
         WIFI& wifi;
         u32& key_input;
+        EXMEMCNT& exmemcnt;
       };
 
       MemoryBus(SystemMemory& memory, const HW& hw);

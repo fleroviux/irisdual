@@ -14,8 +14,9 @@ namespace dual::nds {
     IRQ& irq7,
     arm9::DMA& dma9,
     arm7::DMA& dma7,
-    SystemMemory& memory
-  )   : m_scheduler{scheduler}, m_dma9{dma9}, m_dma7{dma7}, m_memory{memory} {
+    SystemMemory& memory,
+    EXMEMCNT& exmemcnt
+  )   : m_scheduler{scheduler}, m_dma9{dma9}, m_dma7{dma7}, m_memory{memory}, m_exmemcnt{exmemcnt} {
     m_irq[(int)CPU::ARM9] = &irq9;
     m_irq[(int)CPU::ARM7] = &irq7;
   }
@@ -137,25 +138,19 @@ namespace dual::nds {
       m_transfer.count = 0;
 
       if(m_auxspicnt.enable_transfer_ready_irq) {
-        // @todo
-        // if(exmemcnt.nds_slot_access == EXMEMCNT::CPU::ARM7) {
-        //   irq7.Raise(IRQ::Source::Cart_DataReady);
-        // } else {
-        //   irq9.Raise(IRQ::Source::Cart_DataReady);
-        //  }
-        for(auto irq : m_irq) irq->Request(IRQ::Source::Cart_DataReady);
+        switch(m_exmemcnt.nds_slot_access_rights) {
+          case 0u: m_irq[(int)CPU::ARM9]->Request(IRQ::Source::Cart_DataReady); break;
+          case 1u: m_irq[(int)CPU::ARM7]->Request(IRQ::Source::Cart_DataReady); break;
+        }
       }
     } else {
       m_scheduler.Add(k_cycles_per_byte[m_romctrl.transfer_clk_rate] * 4, [this](int _) {
         m_romctrl.data_ready = true;
 
-        // if(exmemcnt.nds_slot_access == EXMEMCNT::CPU::ARM7) {
-        //   dma7.Request(DMA7::Time::Slot1);
-        // } else {
-        //  dma9.Request(DMA9::Time::Slot1);
-        //  }
-        m_dma9.Request(arm9::DMA::StartTime::Slot1);
-        m_dma7.Request(arm7::DMA::StartTime::Slot1);
+        switch(m_exmemcnt.nds_slot_access_rights) {
+          case 0u: m_dma9.Request(arm9::DMA::StartTime::Slot1); break;
+          case 1u: m_dma7.Request(arm7::DMA::StartTime::Slot1); break;
+        }
       });
     }
 
@@ -336,23 +331,16 @@ namespace dual::nds {
       m_scheduler.Add(k_cycles_per_byte[m_romctrl.transfer_clk_rate] * 4, [this](int late) {
         m_romctrl.data_ready = true;
 
-        // @todo
-        // if(exmemcnt.nds_slot_access == EXMEMCNT::CPU::ARM7) {
-        //   dma7.Request(DMA7::Time::Slot1);
-        // } else {
-        //   dma9.Request(DMA9::Time::Slot1);
-        // }
-        m_dma9.Request(arm9::DMA::StartTime::Slot1);
-        m_dma7.Request(arm7::DMA::StartTime::Slot1);
+        switch(m_exmemcnt.nds_slot_access_rights) {
+          case 0u: m_dma9.Request(arm9::DMA::StartTime::Slot1); break;
+          case 1u: m_dma7.Request(arm7::DMA::StartTime::Slot1); break;
+        }
       });
     } else if(m_auxspicnt.enable_transfer_ready_irq) {
-      // @todo
-      // if(exmemcnt.nds_slot_access == EXMEMCNT::CPU::ARM7) {
-      //   irq7.Raise(IRQ::Source::Cart_DataReady);
-      // } else {
-      //   irq9.Raise(IRQ::Source::Cart_DataReady);
-      // }
-      for(auto irq : m_irq) irq->Request(IRQ::Source::Cart_DataReady);
+      switch(m_exmemcnt.nds_slot_access_rights) {
+        case 0u: m_irq[(int)CPU::ARM9]->Request(IRQ::Source::Cart_DataReady); break;
+        case 1u: m_irq[(int)CPU::ARM7]->Request(IRQ::Source::Cart_DataReady); break;
+      }
     }
   }
 

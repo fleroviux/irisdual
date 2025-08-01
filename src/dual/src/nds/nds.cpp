@@ -32,6 +32,7 @@ namespace dual::nds {
     m_cartridge.Reset();
 
     m_key_input = 0x007F03FFu;
+    m_exmemcnt = {};
 
     m_memory.ewram.fill(0);
     m_memory.swram.Reset();

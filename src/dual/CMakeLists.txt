@@ -98,6 +98,8 @@ set(HEADERS_PUBLIC
   include/dual/nds/vram/region.hpp
   include/dual/nds/vram/vram.hpp
   include/dual/nds/cartridge.hpp
+  include/dual/nds/enums.hpp
+  include/dual/nds/exmemcnt.hpp
   include/dual/nds/header.hpp
   include/dual/nds/nds.hpp
   include/dual/nds/rom.hpp
